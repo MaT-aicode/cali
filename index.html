@@ -1,0 +1,1332 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Antonia kommt nach Cali</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Source+Sans+3:wght@400;600&display=swap">
+<link rel="stylesheet" href="leaflet.css">
+<style>
+  /* Layout: eine Spalte; oben die Eingabe, darunter der Kalender (Balken über 13 Tage, Tage klappen auf) und die Karte vom Südwesten der USA */
+  :root {
+    --bg: #f7f6f1;
+    --surface: #ffffff;
+    --wash: #efede5;
+    --fg: #1d2a24;
+    --muted: #5c6b63;
+    --accent: #1f6b4a;
+    --accent-2: #e39a2d;
+    --line: #dfe3dc;
+    --sea: #d9e6ec;
+    --land: #f1efe6;
+    --land-hi: #f7f0dc;
+    --land-far: #e7e5dc;
+    --park: #cfe3c4;
+    --border: #b9c2b8;
+    --road: #c9a46a;
+    --pin: #d23a3a;
+    --idea: #5b5fc7;        /* Vorschläge aus den Ideenlisten */
+    /* Farben für Roadtrips */
+    --c1: #2a7f8f; --c2: #7a5aa6; --c3: #c8603f; --c4: #4f7f2f; --c5: #3f6fb5; --c6: #b4507a;
+    --on-c: #ffffff;
+    --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121a16; --surface: #1a241f; --wash: #161f1b; --fg: #e8eee9; --muted: #9fb0a6;
+      --accent: #5fc496; --accent-2: #f0b25a; --line: #2a3832;
+      --sea: #0e1517; --land: #1d2622; --land-hi: #262a20; --land-far: #18201c; --park: #22382a;
+      --border: #3e4f46; --road: #8a6f45; --pin: #ff6b6b; --idea: #a5a8ff;
+      --c1: #6cc3d1; --c2: #b79be0; --c3: #f0957a; --c4: #9ccc72; --c5: #8fb2ee; --c6: #ec8db5;
+      --on-c: #10170f; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121a16; --surface: #1a241f; --wash: #161f1b; --fg: #e8eee9; --muted: #9fb0a6;
+    --accent: #5fc496; --accent-2: #f0b25a; --line: #2a3832;
+    --sea: #0e1517; --land: #1d2622; --land-hi: #262a20; --land-far: #18201c; --park: #22382a;
+    --border: #3e4f46; --road: #8a6f45; --pin: #ff6b6b; --idea: #a5a8ff;
+    --c1: #6cc3d1; --c2: #b79be0; --c3: #f0957a; --c4: #9ccc72; --c5: #8fb2ee; --c6: #ec8db5;
+    --on-c: #10170f; color-scheme: dark;
+  }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font-body); font-size: 1.0625rem; line-height: 1.6;
+  }
+  .wrap {
+    max-width: 60rem; margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  header { padding-block: 2.5rem 1.75rem; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  h1 {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(2.4rem, 8vw, 4rem); line-height: 1.02; margin: 0.4rem 0 1rem;
+    text-wrap: balance;
+  }
+  h1 span { color: var(--accent-2); }
+  .lead { color: var(--muted); max-width: 34rem; margin: 0; }
+  main { display: grid; gap: 2.5rem; padding-block: 2.5rem 4rem; }
+  section { min-width: 0; }
+  h2 {
+    font-family: var(--font-display); font-weight: 500; font-size: 1.5rem;
+    margin: 0 0 0.75rem; text-wrap: balance;
+  }
+  h3.sub { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; margin: 1.75rem 0 0.6rem; }
+  .placeholder {
+    border: 1px dashed var(--line); border-radius: 10px; background: var(--surface);
+    padding: 1rem 1.25rem; color: var(--muted);
+  }
+  footer { color: var(--muted); font-size: 0.85rem; padding-block: 0 2.5rem; }
+  .hint { color: var(--muted); margin: 0 0 1rem; max-width: 42rem; }
+
+  /* Eingabe */
+  .add-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0.9rem 1rem 0.8rem; margin-bottom: 0.5rem; display: grid; gap: 0.75rem; }
+  .fields { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; }
+  .seg { display: inline-flex; justify-self: start; background: var(--wash); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg-btn { background: transparent; color: var(--muted); border: 0; border-radius: 999px; padding: 0.3rem 0.9rem; font-size: 0.85rem; transition: background .2s, color .2s; }
+  .seg-btn.on { background: var(--accent); color: var(--bg); }
+  .seg-btn:not(.on):hover { color: var(--fg); }
+  .add-hint { margin: 0; color: var(--muted); font-size: 0.8rem; }
+  #act-form label { display: grid; gap: 0.25rem; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; min-width: 0; }
+  #act-form .grow { flex: 2 1 16rem; }
+  #act-form .mid { flex: 1 1 11rem; }
+  #act-form .day-sel { flex: 1 1 9.5rem; }
+  #act-form input, #act-form select, .pop select {
+    font: inherit; font-size: 1rem; text-transform: none; letter-spacing: 0; color: var(--fg);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0.55rem 0.7rem; width: 100%; box-sizing: border-box;
+  }
+  button {
+    font: inherit; font-weight: 600; font-size: 0.95rem; cursor: pointer;
+    border-radius: 8px; padding: 0.55rem 0.95rem; border: 1px solid var(--accent);
+    background: var(--accent); color: var(--bg);
+  }
+  button.ghost { background: transparent; color: var(--accent); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  #status { margin: 0 0 0.5rem; min-height: 1.6em; color: var(--muted); font-size: 0.95rem; }
+  #status.warn { color: var(--pin); }
+
+  /* Kalender: Balken über die 13 Reisetage */
+  .cal-scroll { overflow-x: auto; padding-bottom: 0.4rem; }
+  .cal { display: grid; grid-template-columns: repeat(13, minmax(4.4rem, 1fr)); row-gap: 0.4rem; position: relative; }
+  .cal-h {
+    all: unset; box-sizing: border-box; cursor: pointer; grid-row: 1; display: grid; justify-items: center; align-content: start; gap: 0.05rem;
+    padding: 0.35rem 0.2rem 0.45rem; border-radius: 10px 10px 0 0; font-variant-numeric: tabular-nums; text-align: center;
+  }
+  .cal-h .wd { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .cal-h .dt { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; line-height: 1.1; }
+  .cal-h .tg { font-size: 0.65rem; color: var(--accent); font-weight: 600; line-height: 1.15; min-height: 0.75rem; }
+  .cal-h:hover .dt { color: var(--accent); }
+  .cal-h:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+  .cal-h.open { background: var(--accent); }
+  .cal-h.open .wd, .cal-h.open .dt, .cal-h.open .tg { color: var(--bg); }
+  .cal-bg { border-left: 1px solid var(--line); cursor: pointer; }
+  .cal-bg.we { background: var(--wash); }
+  .cal-bg.open { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .cal-bg.today { box-shadow: inset 0 2px 0 var(--accent-2); }
+  .cal-bg.first { border-left-color: transparent; }
+  .bar {
+    all: unset; box-sizing: border-box; cursor: pointer; z-index: 1; margin: 0 3px; height: 2rem; min-width: 0;
+    display: flex; align-items: center; gap: 0.35rem; padding: 0 0.7rem; border-radius: 999px;
+    font-size: 0.8rem; font-weight: 600; line-height: 1; white-space: nowrap;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .bar .lbl { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .bar .meta { font-weight: 400; opacity: 0.8; flex: none; }
+  .bar:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, .14); }
+  .bar:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  .bar.trip { background: var(--c); color: var(--on-c); }
+  .bar.ev { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); color: var(--fg); border-radius: 8px; padding: 0 0.5rem; }
+  .bar.ev .t { color: var(--accent); font-variant-numeric: tabular-nums; flex: none; }
+  .cal-empty { grid-column: 1 / -1; grid-row: 2 / span 2; align-self: center; justify-self: center; color: var(--muted); font-size: 0.9rem; z-index: 1; pointer-events: none; padding-inline: 1rem; text-align: center; }
+  .cal-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; color: var(--muted); font-size: 0.8rem; margin-top: 0.6rem; }
+  .cal-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .cal-legend i { width: 1.4rem; height: 0.7rem; border-radius: 99px; display: inline-block; }
+  #unsched { margin-top: 1rem; }
+  #unsched h3 { font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.4rem; font-weight: 600; }
+  #unsched ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
+  .item {
+    width: 100%; text-align: left; display: grid; gap: 0.05rem; font-weight: 400; font-size: 0.9rem; line-height: 1.35;
+    background: var(--surface); color: var(--fg); border: 1px solid var(--line); padding: 0.45rem 0.6rem;
+  }
+  .item:hover { border-color: var(--accent); }
+  .item .nm { font-weight: 600; overflow-wrap: anywhere; }
+  .item .pl { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
+
+  /* Detailansicht eines Tages */
+  .detail { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .45s cubic-bezier(.2,.7,.2,1), opacity .3s ease; }
+  .detail.open { grid-template-rows: 1fr; opacity: 1; }
+  .detail-inner { overflow: hidden; min-height: 0; }
+  .detail-card { margin-top: 0.75rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 1rem 1.25rem 1.25rem; }
+  .detail-card.flash { animation: flash 2.4s ease-out; }
+  @keyframes flash { 0%, 40% { border-color: var(--accent-2); box-shadow: 0 0 0 3px var(--accent-2); } 100% { box-shadow: 0 0 0 0 transparent; } }
+  .detail-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .detail-head h4 { font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; margin: 0; flex: 1 1 auto; min-width: 0; text-wrap: balance; }
+  .chip { font-size: 0.75rem; font-weight: 600; color: var(--accent); border: 1px solid var(--accent); border-radius: 99px; padding: 0.1rem 0.55rem; white-space: nowrap; }
+  .chip.trip { background: var(--c); border-color: var(--c); color: var(--on-c); }
+  .icon-btn { background: transparent; color: var(--fg); border: 1px solid var(--line); padding: 0.3rem 0.65rem; font-size: 1rem; line-height: 1.2; }
+  .icon-btn:hover { border-color: var(--accent); }
+  .detail-sum { color: var(--muted); margin: 0.3rem 0 0.9rem; font-size: 0.95rem; }
+  .ev-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+  .ev { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 0.4rem 1rem; padding-top: 0.75rem; border-top: 1px solid var(--line); }
+  .ev:first-child { border-top: 0; padding-top: 0; }
+  .ev input, .ev textarea, .ev select {
+    font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-sizing: border-box;
+  }
+  .ev input[type="time"] { font-variant-numeric: tabular-nums; padding: 0.35rem 0.4rem; width: 100%; }
+  .ev .ev-title { width: 100%; font-weight: 600; font-size: 1.05rem; padding: 0.3rem 0.5rem; background: transparent; border-color: transparent; }
+  .ev .ev-title:hover, .ev .ev-title:focus { border-color: var(--line); background: var(--bg); }
+  .ev .place-row { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
+  .ev .place-row input { flex: 1 1 auto; min-width: 0; font-size: 0.9rem; padding: 0.3rem 0.5rem; }
+  .ev .place-row button { flex: none; font-size: 0.8rem; padding: 0.3rem 0.6rem; }
+  .ev .time-ro { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--muted); }
+  .ev h5 { font-size: 1.05rem; margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+  .ev .pl { color: var(--muted); font-size: 0.85rem; margin: 0.25rem 0 0; overflow-wrap: anywhere; }
+  .ev .pl.wait { color: var(--accent-2); }
+  .ev .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.3rem; }
+  .ev textarea { font-size: 0.95rem; padding: 0.45rem 0.6rem; width: 100%; resize: vertical; min-height: 3.2rem; margin-top: 0.4rem; }
+  .ev .note-ro { margin: 0.3rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .ev .acts { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-top: 0.5rem; }
+  .ev .acts button { font-size: 0.8rem; padding: 0.3rem 0.6rem; }
+  .ev .acts select { font-size: 0.8rem; padding: 0.3rem 0.4rem; background: var(--surface); }
+  .ev .acts a { color: var(--accent); font-weight: 600; font-size: 0.85rem; text-decoration: none; }
+  .ev .acts a:hover { text-decoration: underline; }
+  .ev .ev-main { min-width: 0; }
+  @media (max-width: 560px) { .ev { grid-template-columns: minmax(0, 1fr); } }
+
+  /* Karte */
+  #map {
+    height: min(34rem, 72vh); border-radius: 12px; border: 1px solid var(--line);
+    background: var(--sea); font-family: var(--font-body);
+  }
+  #map.placing { cursor: crosshair; outline: 2px solid var(--accent-2); outline-offset: 2px; }
+  #map.placing .leaflet-grab { cursor: crosshair; }
+  .leaflet-container .leaflet-control-attribution { background: var(--surface); color: var(--muted); font-size: 0.7rem; }
+  .leaflet-bar a { background: var(--surface); color: var(--fg); border-color: var(--line); }
+  .leaflet-bar a:hover, .leaflet-bar a:focus { background: var(--bg); }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--surface); color: var(--fg); }
+  .leaflet-popup-content { margin: 12px 16px; font-size: 0.95rem; min-width: 12rem; }
+  .pop h3 { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; margin: 0 0 0.2rem; }
+  .pop p { margin: 0 0 0.4rem; }
+  .pop .pl { color: var(--muted); font-size: 0.8rem; }
+  .leaflet-container .pop a.gm { color: var(--accent); font-weight: 600; font-size: 0.85rem; text-decoration: none; }
+  .leaflet-container .pop a.gm:hover { text-decoration: underline; }
+  .pop button { font-size: 0.8rem; padding: 0.3rem 0.6rem; }
+  .pin-icon { background: none; border: 0; }
+  .pin-icon svg { display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+  .pin-icon .lbl { position: absolute; left: 50%; top: -1.1rem; transform: translateX(-50%); font: 600 0.68rem/1 var(--font-body); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 2px 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .pin-icon.drop svg { animation: drop .6s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes drop { 0% { transform: translateY(-40px); opacity: 0; } 100% { transform: none; opacity: 1; } }
+  .city-label { background: none; border: 0; white-space: nowrap; font-size: 0.72rem; color: var(--muted); letter-spacing: 0.04em; }
+  .city-label b { color: var(--fg); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; }
+  .city-label i { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); margin-right: 4px; vertical-align: middle; }
+  .park-label { background: none; border: 0; white-space: nowrap; font-size: 0.68rem; font-style: italic; color: var(--accent); font-weight: 600; transform: translate(-50%, -50%); }
+  .state-label { background: none; border: 0; white-space: nowrap; font-size: 0.8rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--border); font-weight: 600; transform: translate(-50%, -50%); }
+  /* Vorschläge: kleine Punkte, beim Hineinzoomen Namensschilder; Nadeln bleiben darüber */
+  .map-legend { display: flex; flex-wrap: wrap; gap: 0.3rem 1.1rem; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.5rem; }
+  .map-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .map-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+  .map-legend .lg-pin { background: var(--pin); width: 11px; height: 11px; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--pin); }
+  .map-legend .lg-idea { background: var(--idea); border: 1.5px solid var(--surface); box-shadow: 0 0 0 1px var(--idea); }
+  .map-legend .lg-idea.added { background: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .idea-tag { background: none; border: 0; }
+  .idea-tag span {
+    position: absolute; left: 0; top: 0; transform: translate(-6px, -50%);
+    display: inline-flex; align-items: center; gap: 0.3rem; max-width: 13rem;
+    background: var(--surface); color: var(--fg); border: 1px solid color-mix(in srgb, var(--idea) 45%, var(--line));
+    border-radius: 6px; padding: 2px 6px 2px 4px; font: 600 0.68rem/1.2 var(--font-body); white-space: nowrap; cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
+  }
+  .idea-tag span::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--idea); }
+  .idea-tag span b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+  .idea-tag.added span::before { background: var(--accent); }
+  .idea-tag.added span { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+  .idea-tag.sel span { background: var(--idea); color: var(--surface); border-color: var(--idea); }
+  .idea-tag.sel span::before { background: var(--surface); }
+  .idea-card .meta { color: var(--muted); font-size: 0.85rem; margin: 0.2rem 0 0.6rem; }
+  .idea-card .approx { color: var(--accent-2); font-size: 0.85rem; margin: 0 0 0.6rem; }
+  .idea-card .desc { margin: 0 0 0.7rem; max-width: 42rem; }
+  .idea-card .links { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-bottom: 0.9rem; }
+  .idea-card .links a { color: var(--accent); font-weight: 600; font-size: 0.9rem; text-decoration: none; overflow-wrap: anywhere; }
+  .idea-card .links a:hover { text-decoration: underline; }
+  .idea-card .already { color: var(--accent); font-weight: 600; font-size: 0.9rem; margin: 0 0 0.6rem; }
+  .add-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; padding-top: 0.8rem; border-top: 1px solid var(--line); }
+  .add-row label { display: grid; gap: 0.2rem; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .add-row select, .add-row input { font: inherit; font-size: 0.95rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 0.4rem 0.5rem; text-transform: none; letter-spacing: 0; }
+  .add-row .add-title { font-weight: 600; width: 100%; color: var(--fg); font-size: 0.95rem; }
+  .general { margin-top: 1rem; }
+  .general summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+  .general ul { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .general li button { font-weight: 400; font-size: 0.85rem; padding: 0.3rem 0.6rem; background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
+  .general li button:hover { border-color: var(--idea); }
+  @media (prefers-reduced-motion: reduce) {
+    .leaflet-zoom-anim .leaflet-zoom-animated, .detail, .bar { transition: none; }
+    .detail-card.flash, .pin-icon.drop svg { animation: none; }
+  }
+
+  /* Grundlagen, die auf claude.ai die Plattform setzte */
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+
+  /* PIN-Fenster */
+  body.locked { overflow: hidden; }
+  .gate {
+    position: fixed; inset: 0; z-index: 5000; background: var(--bg); display: grid; place-items: center;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .gate-card { width: 100%; max-width: 22rem; display: grid; gap: 0.9rem; }
+  .gate-title { font-size: clamp(2rem, 9vw, 2.6rem); margin: 0 0 0.2rem; }
+  .gate-text { color: var(--muted); margin: 0; }
+  .gate label { display: grid; gap: 0.25rem; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .gate input:not([type="checkbox"]) {
+    font: inherit; font-size: 1.1rem; color: var(--fg); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 0.65rem 0.8rem; width: 100%; box-sizing: border-box; text-transform: none; letter-spacing: 0;
+  }
+  .gate .pin { font-size: 1.6rem; letter-spacing: 0.6em; text-align: center; font-variant-numeric: tabular-nums; }
+  .gate .gate-check { display: flex; align-items: center; gap: 0.5rem; text-transform: none; letter-spacing: 0; font-size: 0.95rem; font-weight: 400; color: var(--fg); }
+  .gate-msg { margin: 0; color: var(--pin); min-height: 1.4em; font-size: 0.95rem; }
+  .who { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .who button { font-size: 0.8rem; padding: 0.25rem 0.6rem; }
+</style>
+</head>
+<body class="locked">
+
+<div class="gate" id="gate">
+  <form class="gate-card" id="gate-form" autocomplete="off">
+    <h1 class="gate-title">Antonia kommt nach <span>Cali</span></h1>
+    <p class="gate-text" id="gate-text">Einen Moment …</p>
+    <label for="gate-pin">PIN
+      <input class="pin" id="gate-pin" name="gate-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required>
+    </label>
+    <label for="gate-pin2" id="gate-pin2-wrap" hidden>PIN wiederholen
+      <input class="pin" id="gate-pin2" name="gate-pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
+    </label>
+    <label for="gate-name">Dein Name
+      <input id="gate-name" name="gate-name" maxlength="30" placeholder="z. B. Antonia" required>
+    </label>
+    <label class="gate-check" for="gate-remember"><input type="checkbox" id="gate-remember" checked>Auf diesem Gerät angemeldet bleiben</label>
+    <button type="submit" id="gate-btn">Öffnen</button>
+    <p class="gate-msg" id="gate-msg" role="alert"></p>
+    <button type="button" class="ghost" id="gate-new" hidden>Neuen Plan mit dieser PIN anlegen</button>
+  </form>
+</div>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Kalifornien · Las Vegas · Nationalparks · 22.12.2026 – 03.01.2027</div>
+    <h1>Antonia kommt nach <span>Cali</span></h1>
+    <p class="lead">Unsere gemeinsame Seite für den Urlaub. Tragt Events ein, sie landen sofort im Kalender und auf der Karte.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="cal-block">
+    <h2>Kalender</h2>
+    <form id="act-form" class="add-card" autocomplete="off">
+      <div class="seg" role="radiogroup" aria-label="Dauer des Events">
+        <button type="button" class="seg-btn on" id="mode-one" role="radio" aria-checked="true">Ein Tag</button>
+        <button type="button" class="seg-btn" id="mode-multi" role="radio" aria-checked="false">Mehrere Tage</button>
+      </div>
+      <div class="fields">
+        <label for="act-name" class="grow">Event
+          <input id="act-name" name="act-name" required maxlength="100" placeholder="z. B. Griffith Observatory">
+        </label>
+        <label for="act-place" class="mid">Ort (optional)
+          <input id="act-place" name="act-place" maxlength="80" placeholder="wenn nicht schon drinsteht">
+        </label>
+        <label for="act-day" class="day-sel"><span id="day-lbl">Tag</span>
+          <select id="act-day" name="act-day"></select>
+        </label>
+        <label for="act-end" class="day-sel" id="end-wrap" hidden>bis
+          <select id="act-end" name="act-end"></select>
+        </label>
+        <button type="submit" id="btn-add">Eintragen</button>
+      </div>
+      <p class="add-hint" id="add-hint">Tipp: Klick im Kalender auf einen Tag, dann ist er hier schon ausgewählt.</p>
+    </form>
+    <p id="status" role="status"></p>
+
+    <div>
+      <div class="cal-scroll" id="cal-scroll" tabindex="0" aria-label="Kalender vom 22. Dezember bis 3. Januar">
+        <div class="cal" id="cal"></div>
+      </div>
+      <div class="detail" id="day-detail" aria-live="polite">
+        <div class="detail-inner" id="detail-inner"></div>
+      </div>
+      <div class="cal-legend" id="cal-legend"></div>
+      <div id="unsched" hidden>
+        <h3>Noch ohne Tag</h3>
+        <ul id="unsched-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="map-block">
+      <h2>Karte</h2>
+      <div class="map-legend">
+        <span><i class="lg-pin"></i>Eure Events</span>
+        <span><i class="lg-idea"></i>Vorschläge, beim Hineinzoomen mit Namen</span>
+        <span><i class="lg-idea added"></i>Vorschlag ist schon im Kalender</span>
+      </div>
+      <div id="map" aria-label="Karte von Kalifornien, Nevada und den Nationalparks mit unseren Events und Vorschlägen"></div>
+      <div class="detail" id="idea-detail" aria-live="polite">
+        <div class="detail-inner" id="idea-inner"></div>
+      </div>
+      <details id="general-ideas" class="general">
+        <summary id="general-sum">Ideen ohne festen Ort</summary>
+        <ul id="general-list"></ul>
+      </details>
+  </section>
+</main>
+
+<footer class="wrap who">Angemeldet als <strong id="who"></strong> <button type="button" class="ghost" id="logout">Abmelden</button></footer>
+
+<script src="firebase-config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="mapdata.js"></script>
+<script src="ideas.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const statusEl = $("status");
+  const setStatus = (msg, warn) => { statusEl.textContent = msg || ""; statusEl.classList.toggle("warn", !!warn); };
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const motion = () => (matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
+
+  // --- Reisetage 22.12.2026 bis 03.01.2027 ---
+  const isoOf = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const DAYS = [];
+  for (let d = new Date(2026, 11, 22); d <= new Date(2027, 0, 3); d.setDate(d.getDate() + 1)) {
+    DAYS.push({
+      iso: isoOf(d),
+      wd: d.toLocaleDateString("de-DE", { weekday: "short" }).replace(".", ""),
+      dt: d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
+      we: d.getDay() === 0 || d.getDay() === 6,
+    });
+  }
+  const dayIdx = (iso) => DAYS.findIndex((d) => d.iso === iso);
+  const TAGS = {
+    "2026-12-22": "Ankunft", "2026-12-24": "Heiligabend", "2026-12-25": "1. Weihnachtstag",
+    "2026-12-31": "Silvester", "2027-01-01": "Neujahr", "2027-01-03": "Abreise",
+  };
+  const dayLabel = (iso) => { const d = DAYS.find((x) => x.iso === iso); return d ? d.wd + " " + d.dt : "Noch offen"; };
+  const todayIso = isoOf(new Date());
+
+  function fillDaySelect(sel, value, emptyLabel) {
+    sel.textContent = "";
+    const o = el("option", null, emptyLabel || "Noch offen"); o.value = ""; sel.append(o);
+    DAYS.forEach((d) => { const opt = el("option", null, d.wd + " " + d.dt + (TAGS[d.iso] ? " · " + TAGS[d.iso] : "")); opt.value = d.iso; sel.append(opt); });
+    sel.value = value || "";
+  }
+  fillDaySelect($("act-day"), "");
+  fillDaySelect($("act-end"), "", "Tag wählen");
+
+  // Eingabe: ein Tag oder mehrere Tage (Roadtrip)
+  let multi = false;
+  function setMode(m) {
+    multi = m;
+    $("mode-one").classList.toggle("on", !m); $("mode-one").setAttribute("aria-checked", String(!m));
+    $("mode-multi").classList.toggle("on", m); $("mode-multi").setAttribute("aria-checked", String(m));
+    $("end-wrap").hidden = !m;
+    $("day-lbl").textContent = m ? "von" : "Tag";
+    $("act-name").placeholder = m ? "z. B. Roadtrip Vegas, Zion und Bryce" : "z. B. Griffith Observatory";
+    $("add-hint").textContent = m
+      ? "Jeder Tag bekommt einen eigenen Eintrag, den du danach im Kalender einzeln bearbeiten kannst."
+      : "Tipp: Klick im Kalender auf einen Tag, dann ist er hier schon ausgewählt.";
+    if (!m) $("act-end").value = "";
+  }
+  $("mode-one").onclick = () => setMode(false);
+  $("mode-multi").onclick = () => setMode(true);
+
+  // --- Grundkarte: Südwesten der USA aus eingebetteten Daten (keine Kacheln von außen) ---
+  const REGION = [[32.4, -123.3], [39.6, -109.3]];
+  const map = L.map("map", {
+    preferCanvas: true, renderer: L.canvas({ padding: 0.6 }), minZoom: 5, maxZoom: 17,
+    zoomSnap: 0, zoomDelta: 1, wheelPxPerZoomLevel: 15, wheelDebounceTime: 5, // stufenlos, mit Touchpad und Mausrad zügig
+    inertia: true, inertiaDeceleration: 2200, easeLinearity: 0.25,
+    maxBounds: [[27, -131], [48, -99]], maxBoundsViscosity: 0.6,
+    touchZoom: true, dragging: true, doubleClickZoom: true, bounceAtZoomLimits: false, // Zoomen mit zwei Fingern am Handy
+  }).fitBounds(REGION);
+  map.attributionControl.setPrefix(false);
+  map.attributionControl.addAttribution("Grenzen: geoBoundaries (CC BY 4.0) · Straßen und Parks: Natural Earth");
+
+  const data = window.MAPDATA || { states: [], neighbors: [], roads: [], parks: [] };
+  const ROUTE_STATES = /^(California|Nevada|Arizona|Utah)$/;
+  const baseLayer = L.layerGroup().addTo(map);
+  const neighborPolys = (data.neighbors || []).map((r) => L.polygon(r, { interactive: false, weight: 1, fillOpacity: 1 }).addTo(baseLayer));
+  const statePolys = data.states.map((s) => {
+    const p = L.polygon(s.c, { interactive: false, weight: 1.2, fillOpacity: 1 });
+    p._hi = ROUTE_STATES.test(s.n);
+    return p.addTo(baseLayer);
+  });
+  const parkPolys = (data.parks || []).map((p) => L.polygon(p.c, { interactive: false, weight: 0.8, fillOpacity: 0.9 }).addTo(baseLayer));
+  const minorRoads = L.layerGroup();
+  const roadLines = data.roads.map((r) => {
+    const l = L.polyline(r.c, { interactive: false, weight: r.t === "m" ? 2.2 : 1.1 });
+    l._major = r.t === "m";
+    return l.addTo(r.t === "m" ? baseLayer : minorRoads);
+  });
+
+  const stateLabels = L.layerGroup().addTo(map);
+  [["Kalifornien", 37.2, -119.6], ["Nevada", 39.3, -116.9], ["Arizona", 34.3, -111.7], ["Utah", 39.4, -111.6]]
+    .forEach(([n, lat, lng]) => L.marker([lat, lng], { interactive: false, keyboard: false,
+      icon: L.divIcon({ className: "state-label", html: n, iconSize: null }) }).addTo(stateLabels));
+
+  const cities = [
+    ["Los Angeles", 34.0522, -118.2437, true], ["San Francisco", 37.7749, -122.4194, true], ["Las Vegas", 36.1699, -115.1398, true],
+    ["San Diego", 32.7157, -117.1611], ["Sacramento", 38.5816, -121.4944], ["Fresno", 36.7378, -119.7871],
+    ["Santa Barbara", 34.4208, -119.6982], ["Monterey", 36.6002, -121.8947], ["San Luis Obispo", 35.2828, -120.6596],
+    ["Palm Springs", 33.8303, -116.5453], ["Barstow", 34.8958, -117.0173], ["Bakersfield", 35.3733, -119.0187],
+    ["Reno", 39.5296, -119.8138], ["St. George", 37.0965, -113.5684], ["Kanab", 37.0475, -112.5263],
+    ["Page", 36.9147, -111.4558], ["Flagstaff", 35.1983, -111.6513], ["Phoenix", 33.4484, -112.074],
+    ["Moab", 38.5733, -109.5498], ["Salt Lake City", 40.7608, -111.891],
+  ];
+  const cityLayer = L.layerGroup().addTo(map);
+  cities.forEach(([n, lat, lng, big]) => {
+    const html = big ? "<b>" + n + "</b>" : "<i></i>" + n;
+    L.marker([lat, lng], { interactive: false, keyboard: false,
+      icon: L.divIcon({ className: "city-label", html, iconSize: null, iconAnchor: [3, 8] }) }).addTo(cityLayer);
+  });
+
+  // Parknamen: aus den Kartendaten plus Orte, die dort fehlen
+  const parkNames = (data.parks || []).map((p) => [p.n.replace(/ NRA$| NM$| N PRES$| NM & PRES$/, ""), p.l[0], p.l[1]]);
+  parkNames.push(["Bryce Canyon", 37.593, -112.187], ["Arches", 38.733, -109.593], ["Monument Valley", 36.998, -110.098],
+    ["Valley of Fire", 36.43, -114.513], ["Horseshoe Bend", 36.879, -111.51], ["Antelope Canyon", 36.862, -111.374]);
+  const parkLayer = L.layerGroup();
+  parkNames.forEach(([n, lat, lng]) => L.marker([lat, lng], { interactive: false, keyboard: false,
+    icon: L.divIcon({ className: "park-label", html: n, iconSize: null }) }).addTo(parkLayer));
+
+  function paintBase() {
+    const land = css("--land"), landHi = css("--land-hi"), far = css("--land-far"), border = css("--border"), road = css("--road"), park = css("--park"), acc = css("--accent");
+    neighborPolys.forEach((p) => p.setStyle({ color: border, fillColor: far }));
+    statePolys.forEach((p) => p.setStyle({ color: border, fillColor: p._hi ? landHi : land }));
+    parkPolys.forEach((p) => p.setStyle({ color: acc, opacity: 0.35, fillColor: park }));
+    roadLines.forEach((l) => l.setStyle({ color: road, opacity: l._major ? 1 : 0.8 }));
+  }
+  function updateZoomLayers() {
+    const z = map.getZoom();
+    if (z >= 7) minorRoads.addTo(map); else minorRoads.remove();
+    if (z >= 6.5) parkLayer.addTo(map); else parkLayer.remove();
+    if (z <= 7.5) stateLabels.addTo(map); else stateLabels.remove();
+  }
+  paintBase();
+  updateZoomLayers();
+  map.on("zoomend", updateZoomLayers);
+  try {
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { paintBase(); render(true); });
+    new MutationObserver(() => { paintBase(); render(true); })
+      .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  } catch (e) {}
+
+  // --- Zustand ---
+  let db = null, canWrite = true;
+  let acts = [];              // Events: {id, name, place, day, time, note, lat, lng, tripId, by, at}
+  let trips = [];             // Roadtrips: {id, name, place, start, end, color, by, at}
+  const markers = new Map();  // id -> marker
+  const names = {};           // user id -> name
+  const locating = new Set(); // ids, für die gerade die Nadel gesucht wird
+  let placing = null;         // id, für die auf einen Klick in die Karte gewartet wird
+  let justPinned = null;      // id, deren Nadel gerade gesetzt wurde (fällt auf die Karte)
+  let openDay = null;         // geöffneter Tag
+  let flashDetail = false;    // Detailansicht kurz hervorheben
+  let detailDirty = false;    // Neuzeichnen wartet, solange jemand in der Detailansicht tippt
+  const hasPos = (a) => typeof a.lat === "number" && typeof a.lng === "number";
+  const col = () => db.collection("orte");
+  const tripCol = () => db.collection("reisen");
+  const tripOf = (a) => (a.tripId ? trips.find((t) => t.id === a.tripId) : null);
+  const tripVar = (t) => "var(--c" + ((Number(t.color) || 0) % 6 + 1) + ")";
+  const tripLen = (t) => dayIdx(t.end) - dayIdx(t.start) + 1;
+  const byTime = (x, y) => (x.time || "99:99").localeCompare(y.time || "99:99") || (x.at || 0) - (y.at || 0);
+  let me = "";                // Name der Person an diesem Gerät
+  const myId = async () => me || null;
+  const gmUrl = (a) => "https://www.google.com/maps/search/?api=1&query=" + a.lat.toFixed(6) + "," + a.lng.toFixed(6);
+
+  // --- Vorschläge aus den Ideenlisten: Punkte, ab LABEL_ZOOM Namensschilder; Nadeln liegen darüber ---
+  const IDEAS = window.IDEAS || [];
+  const LABEL_ZOOM = 11;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const hasIdeaPos = (i) => typeof i.la === "number" && typeof i.ln === "number";
+  map.createPane("ideas").style.zIndex = 450;
+  const ideaRenderer = L.canvas({ pane: "ideas", padding: 0.3 });
+  const ideaDots = L.layerGroup();
+  const ideaById = new Map(IDEAS.map((i) => [i.id, i]));
+  const dotOf = new Map(), tagOf = new Map(), ideaState = new Map();
+  let selIdea = null, ideaDirty = false;
+  let addedIdeas = new Map(); // ideaId -> Tage, an denen der Vorschlag im Kalender steht
+
+  const tagIcon = (i) => L.divIcon({
+    className: "idea-tag" + (addedIdeas.has(i.id) ? " added" : "") + (selIdea === i.id ? " sel" : ""),
+    html: "<span><b>" + esc(i.t) + "</b></span>", iconSize: [0, 0],
+  });
+  IDEAS.filter(hasIdeaPos).forEach((i) => {
+    const d = L.circleMarker([i.la, i.ln], { renderer: ideaRenderer, pane: "ideas", radius: 4, weight: 1.5, fillOpacity: 1 });
+    d.bindTooltip(i.t, { direction: "top", offset: [0, -4] });
+    d.on("click", () => showIdea(i.id));
+    d.addTo(ideaDots); dotOf.set(i.id, d);
+    const t = L.marker([i.la, i.ln], { pane: "ideas", icon: tagIcon(i), keyboard: false, title: i.t });
+    t.on("click", () => showIdea(i.id));
+    tagOf.set(i.id, t);
+  });
+  // Namensschilder nur im sichtbaren Ausschnitt, damit Verschieben und Zoomen flüssig bleiben
+  function updateIdeaLayers() {
+    if (map.getZoom() >= LABEL_ZOOM) {
+      ideaDots.remove();
+      const b = map.getBounds().pad(0.4);
+      tagOf.forEach((t) => {
+        const inView = b.contains(t.getLatLng());
+        if (inView && !map.hasLayer(t)) t.addTo(map);
+        else if (!inView && map.hasLayer(t)) t.remove();
+      });
+    } else {
+      tagOf.forEach((t) => { if (map.hasLayer(t)) t.remove(); });
+      ideaDots.addTo(map);
+    }
+  }
+  updateIdeaLayers();
+  map.on("moveend", updateIdeaLayers);
+
+  function refreshIdeas(restyle) {
+    addedIdeas = new Map();
+    acts.forEach((a) => { if (a.ideaId) addedIdeas.set(a.ideaId, (addedIdeas.get(a.ideaId) || []).concat(a.day || "")); });
+    const ideaC = css("--idea"), accC = css("--accent"), surfC = css("--surface");
+    IDEAS.filter(hasIdeaPos).forEach((i) => {
+      const st = (addedIdeas.has(i.id) ? 1 : 0) + (selIdea === i.id ? 2 : 0);
+      if (!restyle && ideaState.get(i.id) === st) return;
+      ideaState.set(i.id, st);
+      dotOf.get(i.id).setStyle({ color: surfC, fillColor: st & 1 ? accC : ideaC, radius: st & 2 ? 7 : 4 });
+      if (st & 2) dotOf.get(i.id).bringToFront();
+      tagOf.get(i.id).setIcon(tagIcon(i));
+      tagOf.get(i.id).setZIndexOffset(st & 2 ? 1000 : 0);
+    });
+  }
+
+  function showIdea(id) {
+    selIdea = id;
+    refreshIdeas();
+    renderIdea(true);
+    setTimeout(() => $("idea-detail").scrollIntoView({ behavior: motion(), block: "nearest" }), 480);
+  }
+
+  function renderIdea(force) {
+    const box = $("idea-detail"), inner = $("idea-inner");
+    const i = selIdea && ideaById.get(selIdea);
+    if (!i) { box.classList.remove("open"); return; }
+    const f = document.activeElement;
+    if (!force && f && box.contains(f) && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName)) { ideaDirty = true; return; }
+    ideaDirty = false;
+    const card = el("div", "detail-card idea-card");
+    const head = el("div", "detail-head");
+    head.append(el("h4", null, i.t));
+    const close = el("button", "icon-btn", "✕"); close.type = "button"; close.setAttribute("aria-label", "Vorschlag schließen");
+    close.onclick = () => { selIdea = null; refreshIdeas(); renderIdea(); };
+    head.append(close);
+    card.append(head);
+    card.append(el("p", "meta", [i.a, "Ideenliste " + i.s + ", Nr. " + i.n].filter(Boolean).join(" · ")));
+    if (!hasIdeaPos(i)) card.append(el("p", "approx", "Diese Idee hat keinen festen Ort."));
+    else if (i.ap) card.append(el("p", "approx", "Die Lage ist ungefähr: Der Punkt zeigt die Gegend, nicht den genauen Ort."));
+    if (i.d) card.append(el("p", "desc", i.d));
+    const links = el("div", "links");
+    if (i.u) { const a = el("a", null, "Website öffnen ↗"); a.href = i.u; a.target = "_blank"; a.rel = "noopener"; links.append(a); }
+    if (hasIdeaPos(i)) {
+      const a = el("a", null, "In Google Maps öffnen ↗");
+      a.href = i.ap ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(i.t + " " + (i.a || ""))
+                    : "https://www.google.com/maps/search/?api=1&query=" + i.la.toFixed(5) + "," + i.ln.toFixed(5);
+      a.target = "_blank"; a.rel = "noopener"; links.append(a);
+    }
+    if (links.childNodes.length) card.append(links);
+    const days = addedIdeas.get(i.id);
+    if (days) {
+      const p = el("p", "already", "Schon im Kalender: " + days.map(dayLabel).join(", ") + " ");
+      const go = el("button", "ghost", "Im Kalender ansehen"); go.type = "button";
+      go.style.cssText = "font-size:0.8rem;padding:0.25rem 0.55rem;margin-left:0.3rem";
+      go.onclick = () => { if (days[0]) { openDayAt(days[0]); $("cal-block").scrollIntoView({ behavior: motion(), block: "start" }); } };
+      p.append(go); card.append(p);
+    }
+    if (canWrite) {
+      const row = el("div", "add-row");
+      row.append(el("span", "add-title", days ? "Noch an einem Tag eintragen" : "Zum Kalender hinzufügen"));
+      const dl = el("label", null, "Tag"); const sel = document.createElement("select");
+      sel.id = "idea-day"; fillDaySelect(sel, openDay || "", "Tag wählen"); dl.append(sel);
+      const tl = el("label", null, "Uhrzeit (optional)"); const tm = document.createElement("input");
+      tm.type = "time"; tm.id = "idea-time"; tl.append(tm);
+      const btn = el("button", null, "Hinzufügen"); btn.type = "button";
+      const msg = el("p", "detail-sum"); msg.style.cssText = "width:100%;margin:0";
+      btn.onclick = () => addIdea(i, sel.value, tm.value, btn, msg);
+      row.append(dl, tl, btn, msg);
+      card.append(row);
+    }
+    inner.textContent = "";
+    inner.append(card);
+    requestAnimationFrame(() => box.classList.add("open"));
+  }
+  $("idea-detail").addEventListener("focusout", () => setTimeout(() => {
+    const f = document.activeElement;
+    if (ideaDirty && !(f && $("idea-detail").contains(f) && /^(INPUT|SELECT|TEXTAREA)$/.test(f.tagName))) renderIdea();
+  }, 0));
+
+  async function addIdea(i, day, time, btn, msg) {
+    if (!day) { msg.textContent = "Wähle zuerst einen Tag."; return; }
+    btn.disabled = true;
+    const doc = {
+      name: i.t, place: i.a || "", day, time: time || "", note: [i.d, i.u].filter(Boolean).join("\n"),
+      lat: hasIdeaPos(i) ? i.la : null, lng: hasIdeaPos(i) ? i.ln : null, ideaId: i.id, at: Date.now(),
+    };
+    const by = await myId(); if (by) doc.by = by;
+    if (db) {
+      try { await col().doc().set(doc); }
+      catch (e) { btn.disabled = false; failWrite(e); msg.textContent = "Hinzufügen hat nicht geklappt. Versuch es gleich noch mal."; return; }
+    } else {
+      acts.push({ id: "local-" + Date.now(), ...doc });
+    }
+    justPinned = null;
+    setStatus("„" + i.t + "“ steht jetzt im Kalender am " + dayLabel(day) + ".");
+    render();
+    renderIdea(true);
+  }
+
+  const general = IDEAS.filter((i) => !hasIdeaPos(i));
+  $("general-sum").textContent = general.length + " Ideen ohne festen Ort";
+  general.forEach((i) => {
+    const li = document.createElement("li");
+    const b = el("button", null, i.t); b.type = "button"; b.onclick = () => showIdea(i.id);
+    li.append(b); $("general-list").append(li);
+  });
+  $("general-ideas").hidden = !general.length;
+
+  function pinIcon(a) {
+    const t = tripOf(a);
+    const c = t ? css("--c" + ((Number(t.color) || 0) % 6 + 1)) : css("--pin");
+    const d = DAYS.find((x) => x.iso === a.day);
+    const svg =
+      (d ? '<span class="lbl">' + d.dt + "</span>" : "") +
+      '<svg width="26" height="40" viewBox="0 0 26 40" aria-hidden="true">' +
+      '<line x1="13" y1="14" x2="13" y2="39" stroke="#8a8f93" stroke-width="2" stroke-linecap="round"/>' +
+      '<circle cx="13" cy="10" r="9" fill="' + c + '" stroke="rgba(0,0,0,.25)" stroke-width="1"/>' +
+      '<circle cx="10" cy="7" r="3" fill="#fff" fill-opacity=".55"/></svg>';
+    return L.divIcon({ className: "pin-icon", html: svg, iconSize: [26, 40], iconAnchor: [13, 39], popupAnchor: [0, -34] });
+  }
+
+  async function updateAct(id, fields, okMsg) {
+    if (!db) { const a = acts.find((x) => x.id === id); if (a) Object.assign(a, fields); render(); if (okMsg) setStatus(okMsg); return true; }
+    try { await col().doc(id).update(fields); if (okMsg) setStatus(okMsg); return true; }
+    catch (e) { setStatus("Die Änderung wurde nicht gespeichert. Versuch es gleich noch mal.", true); return false; }
+  }
+
+  async function deleteAct(a) {
+    if (!db) { acts = acts.filter((x) => x.id !== a.id); render(); return true; }
+    try { await col().doc(a.id).delete(); setStatus("„" + a.name + "“ gelöscht."); return true; }
+    catch (e) { setStatus("Löschen hat nicht geklappt. Versuch es gleich noch mal.", true); return false; }
+  }
+
+  async function deleteTrip(t) {
+    const days = acts.filter((a) => a.tripId === t.id);
+    if (!db) { acts = acts.filter((a) => a.tripId !== t.id); trips = trips.filter((x) => x.id !== t.id); render(); return; }
+    try {
+      for (const a of days) await col().doc(a.id).delete();
+      await tripCol().doc(t.id).delete();
+      setStatus("Roadtrip „" + t.name + "“ gelöscht.");
+    } catch (e) { setStatus("Löschen hat nicht ganz geklappt. Versuch es gleich noch mal.", true); }
+  }
+
+  function confirmInline(row, trigger, question, yesLabel, onYes) {
+    trigger.remove();
+    const q = el("span", null, question);
+    const yes = el("button", null, yesLabel); yes.type = "button";
+    const no = el("button", "ghost", "Nein"); no.type = "button";
+    no.onclick = () => { q.remove(); yes.remove(); no.remove(); row.append(trigger); };
+    yes.onclick = async () => { yes.disabled = true; await onYes(); };
+    row.append(q, yes, no);
+  }
+
+  // --- Karten-Popup ---
+  function popupFor(a) {
+    const box = el("div", "pop");
+    box.append(el("h3", null, a.name));
+    const t = tripOf(a);
+    if (t) box.append(el("p", "pl", t.name + " · Tag " + (dayIdx(a.day) - dayIdx(t.start) + 1) + " von " + tripLen(t)));
+    if (a.place) box.append(el("p", "pl", a.place));
+    box.append(el("p", "pl", dayLabel(a.day) + (a.time ? " · " + a.time : "")));
+    if (a.note) box.append(el("p", null, a.note));
+    if (hasPos(a)) {
+      const gm = el("a", "gm", "In Google Maps öffnen ↗");
+      gm.href = gmUrl(a); gm.target = "_blank"; gm.rel = "noopener";
+      const p = el("p"); p.append(gm); box.append(p);
+    }
+    if (a.day) {
+      const open = el("button", "ghost", "Tag im Kalender öffnen"); open.type = "button";
+      open.onclick = () => { map.closePopup(); openDayAt(a.day, true); };
+      box.append(open);
+    }
+    return box;
+  }
+
+  // --- Blickführung ---
+  function showOnMap(a) {
+    $("map-block").scrollIntoView({ behavior: motion(), block: "start" });
+    map.flyTo([a.lat, a.lng], Math.max(map.getZoom(), 12), { duration: 0.9 });
+    const m = markers.get(a.id); if (m) setTimeout(() => m.openPopup(), 1000);
+  }
+  function fitTrip(tripId) {
+    const pts = acts.filter((a) => a.tripId === tripId && hasPos(a)).map((a) => [a.lat, a.lng]);
+    if (!pts.length) return;
+    $("map-block").scrollIntoView({ behavior: motion(), block: "start" });
+    if (pts.length === 1) map.flyTo(pts[0], 10, { duration: 0.9 });
+    else map.flyToBounds(pts, { padding: [50, 50], duration: 0.9, maxZoom: 10 });
+  }
+
+  // --- Tag öffnen: Detailansicht klappt unter dem Kalender auf ---
+  function openDayAt(iso, scroll) {
+    openDay = iso;
+    if (!multi || !$("act-end").value) $("act-day").value = iso; // die eine Eingabe übernimmt den geöffneten Tag
+    render();
+    const h = document.querySelector('.cal-h[data-day="' + iso + '"]');
+    if (h) $("cal-scroll").scrollTo({ left: Math.max(0, h.offsetLeft - 8), behavior: motion() });
+    if (scroll) setTimeout(() => $("day-detail").scrollIntoView({ behavior: motion(), block: "nearest" }), 480);
+  }
+  function toggleDay(iso) {
+    if (openDay === iso) { openDay = null; render(); return; }
+    openDayAt(iso, true);
+  }
+  function editingDetail() {
+    const f = document.activeElement;
+    return !!f && $("day-detail").contains(f) && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName);
+  }
+
+  function evFor(a) {
+    const li = el("li", "ev");
+    const t = tripOf(a);
+    const left = el("div");
+    if (canWrite) {
+      const ti = document.createElement("input");
+      ti.type = "time"; ti.value = a.time || ""; ti.setAttribute("aria-label", "Uhrzeit für " + a.name);
+      ti.onchange = () => updateAct(a.id, { time: ti.value }, "Uhrzeit gespeichert.");
+      left.append(ti);
+    } else {
+      left.append(el("span", "time-ro", a.time || "–"));
+    }
+    const main = el("div", "ev-main");
+    if (t) {
+      const chips = el("div", "chips");
+      const chip = el("span", "chip trip", t.name + " · Tag " + (dayIdx(a.day) - dayIdx(t.start) + 1) + " von " + tripLen(t));
+      chip.style.setProperty("--c", tripVar(t));
+      chips.append(chip); main.append(chips);
+    }
+    if (canWrite) {
+      const title = document.createElement("input");
+      title.className = "ev-title"; title.value = a.name; title.maxLength = 100;
+      title.setAttribute("aria-label", "Titel");
+      title.onchange = () => { const v = title.value.trim(); if (v && v !== a.name) updateAct(a.id, { name: v }, "Titel gespeichert."); };
+      main.append(title);
+      const pr = el("div", "place-row");
+      const place = document.createElement("input");
+      place.value = a.place || ""; place.maxLength = 80; place.placeholder = "Ort, z. B. Zion National Park";
+      place.setAttribute("aria-label", "Ort von " + a.name);
+      place.onchange = () => { const v = place.value.trim(); if (v !== (a.place || "")) updateAct(a.id, { place: v }, "Ort gespeichert."); };
+      const find = el("button", "ghost", locating.has(a.id) ? "Sucht …" : "Nadel suchen"); find.type = "button";
+      find.disabled = locating.has(a.id);
+      find.onclick = async () => {
+        const v = place.value.trim();
+        if (v !== (a.place || "")) await updateAct(a.id, { place: v });
+        locate(a.id, title.value.trim() || a.name, v, true);
+      };
+      pr.append(place, find);
+      main.append(pr);
+    } else {
+      main.append(el("h5", null, a.name));
+      if (a.place) main.append(el("p", "pl", a.place));
+    }
+    if (locating.has(a.id)) main.append(el("p", "pl wait", "Nadel wird gesucht …"));
+    else if (!hasPos(a)) main.append(el("p", "pl", "Noch ohne Nadel"));
+    if (a.by && names[a.by]) main.append(el("p", "pl", "Eingetragen von " + names[a.by]));
+    if (canWrite) {
+      const ta = document.createElement("textarea");
+      ta.rows = 2; ta.maxLength = 2000; ta.value = a.note || "";
+      ta.placeholder = "Details: Adresse, Tickets, Treffpunkt, Kosten …";
+      ta.setAttribute("aria-label", "Details zu " + a.name);
+      ta.onchange = () => { if (ta.value !== (a.note || "")) updateAct(a.id, { note: ta.value }, "Details gespeichert."); };
+      main.append(ta);
+    } else if (a.note) {
+      main.append(el("p", "note-ro", a.note));
+    }
+    const row = el("div", "acts");
+    if (hasPos(a)) {
+      const show = el("button", "ghost", "Auf Karte zeigen"); show.type = "button"; show.onclick = () => showOnMap(a);
+      const gm = el("a", null, "Google Maps ↗"); gm.href = gmUrl(a); gm.target = "_blank"; gm.rel = "noopener";
+      row.append(show, gm);
+    } else if (canWrite && !locating.has(a.id)) {
+      const set = el("button", "ghost", "Nadel per Klick setzen"); set.type = "button"; set.onclick = () => startPlacing(a.id);
+      row.append(set);
+    }
+    if (canWrite) {
+      if (!t) {
+        const sel = document.createElement("select");
+        sel.setAttribute("aria-label", "Auf anderen Tag verschieben");
+        fillDaySelect(sel, a.day);
+        sel.onchange = () => updateAct(a.id, { day: sel.value }, "„" + a.name + "“ liegt jetzt auf " + dayLabel(sel.value) + ".");
+        row.append(sel);
+      }
+      const del = el("button", "ghost", t ? "Diesen Tag löschen" : "Löschen"); del.type = "button";
+      del.onclick = () => confirmInline(row, del, "Wirklich löschen?", "Ja, löschen", () => deleteAct(a));
+      row.append(del);
+      if (t) {
+        const delT = el("button", "ghost", "Ganzen Roadtrip löschen"); delT.type = "button";
+        delT.onclick = () => confirmInline(row, delT, "Alle " + tripLen(t) + " Tage löschen?", "Ja, alle löschen", () => deleteTrip(t));
+        row.append(delT);
+      }
+    }
+    main.append(row);
+    li.append(left, main);
+    return li;
+  }
+
+  function renderDetail() {
+    const box = $("day-detail"), inner = $("detail-inner");
+    if (!openDay) { box.classList.remove("open"); return; } // Inhalt bleibt fürs Zuklappen stehen
+    if (editingDetail()) { detailDirty = true; return; }
+    detailDirty = false;
+    const idx = dayIdx(openDay);
+    const list = acts.filter((a) => a.day === openDay).sort(byTime);
+    const card = el("div", "detail-card" + (flashDetail ? " flash" : ""));
+    flashDetail = false;
+
+    const head = el("div", "detail-head");
+    const prev = el("button", "icon-btn", "‹"); prev.type = "button"; prev.setAttribute("aria-label", "Vorheriger Tag");
+    prev.disabled = idx === 0; prev.onclick = () => openDayAt(DAYS[idx - 1].iso);
+    const next = el("button", "icon-btn", "›"); next.type = "button"; next.setAttribute("aria-label", "Nächster Tag");
+    next.disabled = idx === DAYS.length - 1; next.onclick = () => openDayAt(DAYS[idx + 1].iso);
+    const close = el("button", "icon-btn", "✕"); close.type = "button"; close.setAttribute("aria-label", "Tag schließen");
+    close.onclick = () => { openDay = null; render(); };
+    const title = el("h4", null, new Date(openDay + "T12:00:00").toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
+    head.append(prev, next, title);
+    if (TAGS[openDay]) head.append(el("span", "chip", TAGS[openDay]));
+    head.append(close);
+    card.append(head);
+
+    const sum = list.length ? (list.length === 1 ? "1 Event" : list.length + " Events") : "Noch nichts geplant. Trag oben ein Event ein, der Tag ist schon ausgewählt.";
+    card.append(el("p", "detail-sum", sum + " · Tag " + (idx + 1) + " von " + DAYS.length));
+    if (list.length) {
+      const ul = el("ul", "ev-list");
+      list.forEach((a) => ul.append(evFor(a)));
+      card.append(ul);
+    }
+    inner.textContent = "";
+    inner.append(card);
+    requestAnimationFrame(() => box.classList.add("open"));
+  }
+  $("day-detail").addEventListener("focusout", () => setTimeout(() => { if (detailDirty && !editingDetail()) renderDetail(); }, 0));
+
+  // --- Kalender mit Balken ---
+  function renderCalendar() {
+    const cal = $("cal"); cal.textContent = "";
+    const items = [];
+    trips.forEach((t) => { const s = dayIdx(t.start), e = dayIdx(t.end); if (s >= 0 && e >= s) items.push({ kind: "trip", t, s, e }); });
+    acts.filter((a) => !a.tripId && dayIdx(a.day) >= 0).sort(byTime)
+      .forEach((a) => { const i = dayIdx(a.day); items.push({ kind: "ev", a, s: i, e: i }); });
+    // Spuren verteilen: Roadtrips zuerst, dann Events des Tages
+    items.sort((x, y) => (x.kind === y.kind ? 0 : x.kind === "trip" ? -1 : 1) || x.s - y.s || (y.e - y.s) - (x.e - x.s));
+    const lanes = [];
+    items.forEach((it) => {
+      let l = lanes.findIndex((last) => last < it.s);
+      if (l === -1) { l = lanes.length; lanes.push(-1); }
+      lanes[l] = it.e; it.lane = l;
+    });
+    const rows = Math.max(lanes.length, 3);
+    cal.style.gridTemplateRows = "auto repeat(" + rows + ", 2rem) 0.4rem";
+
+    DAYS.forEach((d, i) => {
+      const isOpen = d.iso === openDay;
+      const h = el("button", "cal-h" + (isOpen ? " open" : "")); h.type = "button";
+      h.dataset.day = d.iso;
+      h.style.gridColumn = String(i + 1);
+      h.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      h.setAttribute("aria-controls", "day-detail");
+      h.append(el("span", "wd", d.wd), el("span", "dt", d.dt), el("span", "tg", TAGS[d.iso] || ""));
+      h.onclick = () => toggleDay(d.iso);
+      const bg = el("div", "cal-bg" + (d.we ? " we" : "") + (i === 0 ? " first" : "") + (d.iso === todayIso ? " today" : "") + (isOpen ? " open" : ""));
+      bg.style.gridColumn = String(i + 1);
+      bg.style.gridRow = "2 / span " + (rows + 1);
+      bg.onclick = () => toggleDay(d.iso);
+      cal.append(bg, h);
+    });
+
+    if (!items.length) cal.append(el("div", "cal-empty", "Noch keine Events. Trag oben das erste ein."));
+    items.forEach((it) => {
+      const b = el("button", "bar " + it.kind); b.type = "button";
+      b.style.gridColumn = (it.s + 1) + " / " + (it.e + 2);
+      b.style.gridRow = String(it.lane + 2);
+      if (it.kind === "trip") {
+        b.style.setProperty("--c", tripVar(it.t));
+        b.append(el("span", "lbl", it.t.name), el("span", "meta", tripLen(it.t) + " Tage"));
+        b.title = it.t.name + " · " + dayLabel(it.t.start) + " bis " + dayLabel(it.t.end);
+        b.onclick = () => toggleDay(it.t.start);
+      } else {
+        if (it.a.time) b.append(el("span", "t", it.a.time));
+        b.append(el("span", "lbl", it.a.name));
+        b.title = it.a.name + (it.a.place ? " · " + it.a.place : "");
+        b.onclick = () => toggleDay(it.a.day);
+      }
+      cal.append(b);
+    });
+
+    const leg = $("cal-legend"); leg.textContent = "";
+    const mk = (bg, text) => { const s = el("span"); const i = el("i"); i.style.background = bg; s.append(i, document.createTextNode(text)); leg.append(s); };
+    mk("color-mix(in srgb, var(--accent) 15%, var(--surface))", "Event");
+    trips.forEach((t) => mk(tripVar(t), t.name));
+  }
+
+  function itemFor(a) {
+    const li = document.createElement("li");
+    const b = el("button", "item"); b.type = "button";
+    b.append(el("span", "nm", a.name), el("span", "pl", hasPos(a) ? a.place || "Auf der Karte" : "Ohne Nadel"));
+    b.onclick = () => (hasPos(a) ? showOnMap(a) : canWrite && startPlacing(a.id));
+    li.append(b);
+    return li;
+  }
+
+  function render(restyle) {
+    renderCalendar();
+    renderDetail();
+
+    const open = acts.filter((a) => dayIdx(a.day) < 0);
+    $("unsched").hidden = !open.length;
+    const ul = $("unsched-list"); ul.textContent = "";
+    open.forEach((a) => ul.append(itemFor(a)));
+
+    const seen = new Set();
+    acts.filter(hasPos).forEach((a) => {
+      seen.add(a.id);
+      let m = markers.get(a.id);
+      const key = a.day + "|" + (a.tripId || "");
+      if (!m) {
+        m = L.marker([a.lat, a.lng], { icon: pinIcon(a), draggable: canWrite, title: a.name, riseOnHover: true }).addTo(map);
+        m._actId = a.id;
+        if (a.id === justPinned) { const ic = m.getElement(); if (ic) ic.classList.add("drop"); justPinned = null; }
+        m.on("dragend", async () => {
+          const ll = m.getLatLng();
+          const cur = acts.find((x) => x.id === m._actId);
+          const ok = await updateAct(m._actId, { lat: ll.lat, lng: ll.lng }, "Nadel für „" + (cur ? cur.name : "Event") + "“ verschoben.");
+          if (!ok && cur) m.setLatLng([cur.lat, cur.lng]);
+        });
+        markers.set(a.id, m);
+      } else {
+        m.setLatLng([a.lat, a.lng]);
+        if (restyle || m._key !== key) m.setIcon(pinIcon(a));
+      }
+      m._key = key;
+      m.unbindPopup().bindPopup(() => popupFor(a));
+    });
+    for (const [id, m] of markers) if (!seen.has(id)) { m.remove(); markers.delete(id); }
+
+    refreshIdeas(restyle);
+    renderIdea();
+  }
+
+
+  // --- Nadel per Klick ---
+  function startPlacing(id) {
+    const a = acts.find((x) => x.id === id); if (!a) return;
+    placing = id;
+    $("map").classList.add("placing");
+    setStatus("Tippe in die Karte, wo „" + a.name + "“ hin soll.");
+    $("map-block").scrollIntoView({ behavior: motion(), block: "start" });
+  }
+  map.on("click", async (ev) => {
+    if (!placing) return;
+    const id = placing; placing = null; $("map").classList.remove("placing");
+    justPinned = id;
+    await updateAct(id, { lat: ev.latlng.lat, lng: ev.latlng.lng }, "Nadel gesetzt.");
+  });
+
+  // --- Orte finden: erst eure Vorschläge und bekannte Orte, dann OpenStreetMap ---
+  const inBounds = (lat, lng) => lat > 27 && lat < 48 && lng > -131 && lng < -99;
+  const STOP = new Set(["the", "and", "und", "der", "die", "das", "von", "mit", "zum", "zur", "bei", "nach", "auf", "am", "im"]);
+  const normTxt = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim();
+  const GAZ = [];
+  IDEAS.filter((i) => hasIdeaPos(i) && !i.ap).forEach((i) => GAZ.push([i.t.replace(/\(.*?\)/g, " "), i.la, i.ln]));
+  cities.forEach(([n, lat, lng]) => GAZ.push([n, lat, lng]));
+  parkNames.forEach(([n, lat, lng]) => GAZ.push([n, lat, lng]));
+  [["Santa Monica", 34.0195, -118.4912], ["Hollywood", 34.0928, -118.3287], ["Malibu", 34.0259, -118.7798],
+   ["Venice", 33.985, -118.4695], ["Beverly Hills", 34.0736, -118.4004], ["Pasadena", 34.1478, -118.1445],
+   ["Anaheim", 33.8366, -117.9143], ["Disneyland", 33.8121, -117.919], ["Springdale", 37.1889, -112.9986],
+   ["Tropic", 37.6253, -112.0846], ["Henderson", 36.0395, -114.9817], ["Boulder City", 35.9786, -114.8325],
+   ["Big Sur", 36.2704, -121.8081], ["Carmel", 36.5552, -121.9233], ["Lake Tahoe", 39.0968, -120.0324],
+   ["Twentynine Palms", 34.1356, -116.0542], ["Williams", 35.2495, -112.191], ["Panguitch", 37.8228, -112.4358],
+  ].forEach((x) => GAZ.push(x));
+  const GAZ_N = GAZ.map(([n, lat, lng]) => ({ n: n.trim(), lat, lng, toks: normTxt(n).split(" ").filter((t) => t.length > 1 && !STOP.has(t)) }))
+    .filter((g) => g.toks.length);
+
+  // Treffer, wenn alle Wörter eines bekannten Ortes in der Eingabe vorkommen; der genaueste Ort gewinnt
+  function localFind(q) {
+    const qt = new Set(normTxt(q).split(" "));
+    let best = null, bestScore = 0;
+    GAZ_N.forEach((g) => {
+      if (!g.toks.every((t) => qt.has(t))) return;
+      const score = g.toks.length * 100 + g.toks.join("").length;
+      if (score > bestScore) { best = g; bestScore = score; }
+    });
+    return best ? { lat: best.lat, lng: best.lng, label: best.n.slice(0, 80) } : null;
+  }
+
+  async function osmFind(q) {
+    if (!q) return null;
+    const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=us&bounded=1" +
+      "&viewbox=-126,44,-104,31&accept-language=de&q=" + encodeURIComponent(q);
+    const r = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j || !j[0]) return null;
+    const lat = Number(j[0].lat), lng = Number(j[0].lon);
+    if (!isFinite(lat) || !isFinite(lng) || !inBounds(lat, lng)) return null;
+    return { lat, lng, label: String(j[0].name || j[0].display_name || "").split(",")[0].slice(0, 80) };
+  }
+
+  async function geocode(name, place) {
+    const local = (place && localFind(place)) || (name && localFind(name));
+    if (local) return local;
+    try { return (await osmFind(place)) || (await osmFind(name)); } catch (e) { return null; }
+  }
+
+  async function locate(id, name, place, quiet) {
+    locating.add(id); render();
+    const found = await geocode(name, place);
+    locating.delete(id);
+    if (found) {
+      const fields = { lat: found.lat, lng: found.lng };
+      if (!place && found.label) fields.place = found.label;
+      justPinned = id;
+      const ok = await updateAct(id, fields, "„" + name + "“ ist auf der Karte. Zieh die Nadel, falls die Stelle nicht genau passt.");
+      if (ok) map.flyTo([found.lat, found.lng], Math.max(map.getZoom(), 10), { duration: 0.9 });
+    } else {
+      render();
+      setStatus("Für „" + name + "“ wurde kein Ort gefunden. Öffne den Tag, gib einen genaueren Ort ein oder setz die Nadel per Klick.", true);
+    }
+  }
+
+  // Roadtrip: der erste Tag bekommt die Nadel zur Ortsangabe, die übrigen Tage füllt ihr selbst
+  async function planTrip(tripId, days, name, place) {
+    if (place) {
+      const f = await geocode("", place);
+      if (f) { justPinned = days[0].id; await updateAct(days[0].id, { lat: f.lat, lng: f.lng }); }
+    }
+    setStatus("Roadtrip „" + name + "“ gespeichert. Öffne die Tage im Kalender, gib pro Tag einen Ort ein und tippe auf „Nadel suchen“.");
+  }
+
+  // --- Eintragen (die einzige Eingabe für neue Events) ---
+  $("act-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const name = $("act-name").value.trim(), place = $("act-place").value.trim();
+    const start = $("act-day").value, end = multi ? $("act-end").value : "";
+    if (!name) { setStatus("Gib zuerst ein Event ein.", true); $("act-name").focus(); return; }
+    if (multi && !start) { setStatus("Wähle bei „von“ den ersten Tag.", true); $("act-day").focus(); return; }
+    if (multi && !end) { setStatus("Wähle bei „bis“ den letzten Tag.", true); $("act-end").focus(); return; }
+    if (multi && dayIdx(end) <= dayIdx(start)) { setStatus("„bis“ muss nach dem ersten Tag liegen. Für einen einzelnen Tag wähle „Ein Tag“.", true); $("act-end").focus(); return; }
+    const btn = $("btn-add"); btn.disabled = true;
+    const by = await myId();
+    const now = Date.now();
+
+    if (end && dayIdx(end) > dayIdx(start)) {
+      // Roadtrip über mehrere Tage: ein Eintrag pro Tag
+      const color = trips.length % 6;
+      const range = DAYS.slice(dayIdx(start), dayIdx(end) + 1);
+      const trip = { name, place, start, end, color, at: now };
+      if (by) trip.by = by;
+      const days = [];
+      try {
+        let tripId;
+        if (db) { const ref = tripCol().doc(); await ref.set(trip); tripId = ref.id; }
+        else { tripId = "local-trip-" + now; trips.push({ id: tripId, ...trip }); }
+        for (let k = 0; k < range.length; k++) {
+          const doc = { name: name + " · Tag " + (k + 1), place, day: range[k].iso, tripId, time: "", note: "", lat: null, lng: null, at: now + k + 1 };
+          if (by) doc.by = by;
+          let id;
+          if (db) { const ref = col().doc(); await ref.set(doc); id = ref.id; }
+          else { id = "local-" + now + "-" + k; acts.push({ id, ...doc }); }
+          days.push({ id, iso: range[k].iso });
+        }
+      } catch (e) {
+        btn.disabled = false; failWrite(e); return;
+      }
+      resetForm(); btn.disabled = false;
+      setStatus("Roadtrip „" + name + "“ gespeichert (" + range.length + " Tage). Die Stopps werden geplant …");
+      flashDetail = true;
+      openDayAt(start, true);
+      planTrip(tripId, days, name, place);
+      return;
+    }
+
+    const doc = { name, place, day: start, time: "", note: "", lat: null, lng: null, at: now };
+    if (by) doc.by = by;
+    let id;
+    if (db) {
+      try { const ref = col().doc(); await ref.set(doc); id = ref.id; }
+      catch (e) { btn.disabled = false; failWrite(e); return; }
+    } else {
+      id = "local-" + now;
+      acts.push({ id, ...doc });
+    }
+    resetForm(); btn.disabled = false;
+    setStatus("„" + name + "“ gespeichert. Die Nadel wird gesucht …");
+    if (start) { flashDetail = true; openDayAt(start, true); } else render();
+    locate(id, name, place);
+  });
+
+  function resetForm() { $("act-name").value = ""; $("act-place").value = ""; $("act-end").value = ""; }
+  function failWrite(e) {
+    if (e && e.code === "invalid_argument") { canWrite = false; $("act-form").hidden = true; setStatus("Du kannst hier nur ansehen, nicht eintragen.", true); }
+    else if (e && e.code === "quota_exceeded") setStatus("Der Speicher ist voll. Löscht ein paar alte Einträge.", true);
+    else setStatus("Speichern hat nicht geklappt. Versuch es gleich noch mal.", true);
+  }
+
+  // --- Zugang per PIN und gemeinsamer Speicher (Firebase Firestore) ---
+  // Die PIN wird nirgends gespeichert: Aus ihr wird der Speicherort des Plans berechnet.
+  const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
+  const SALT = "antonia-kommt-nach-cali-2026:";
+  const local = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} },
+  };
+  let fs = null, fdb = null;
+
+  async function planKey(pin) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(SALT + pin));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
+  }
+
+  async function connect() {
+    if (fdb) return;
+    const cfg = window.FIREBASE_CONFIG;
+    if (!cfg || !cfg.apiKey || !cfg.projectId) throw { code: "no-config" };
+    const app = await import(FB + "firebase-app.js");
+    fs = await import(FB + "firebase-firestore.js");
+    fdb = fs.getFirestore(app.initializeApp(cfg));
+  }
+
+  // Kleine Hülle, damit der Rest der Seite mit db.collection(...).doc(...) arbeiten kann
+  function makeDb(key) {
+    return {
+      collection(name) {
+        const c = fs.collection(fdb, "plaene", key, name);
+        return {
+          doc(id) {
+            const r = id ? fs.doc(c, id) : fs.doc(c);
+            return { id: r.id, set: (d) => fs.setDoc(r, d), update: (d) => fs.updateDoc(r, d), delete: () => fs.deleteDoc(r) };
+          },
+          orderBy(field) {
+            const q = fs.query(c, fs.orderBy(field));
+            return {
+              onSnapshot: (next, err) => fs.onSnapshot(q,
+                (s) => next({ docs: s.docs.map((d) => ({ id: d.id, data: () => d.data() })) }), err),
+            };
+          },
+        };
+      },
+    };
+  }
+
+  async function openPlan(pin, create) {
+    await connect();
+    const key = await planKey(pin);
+    const marker = fs.doc(fdb, "plaene", key);
+    const snap = await fs.getDoc(marker);
+    if (!snap.exists()) {
+      if (!create) return "missing";
+      await fs.setDoc(marker, { erstellt: fs.serverTimestamp() });
+    }
+    db = makeDb(key);
+    subscribe();
+    return "ok";
+  }
+
+  function subscribe() {
+    const onErr = () => setStatus("Die Verbindung zum Speicher ist abgebrochen. Lade die Seite neu.", true);
+    tripCol().orderBy("at").onSnapshot((snap) => {
+      trips = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => typeof t.name === "string");
+      render();
+    }, onErr);
+    col().orderBy("at").onSnapshot((snap) => {
+      acts = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((a) => typeof a.name === "string");
+      acts.forEach((a) => { if (a.by) names[a.by] = a.by; });
+      render();
+    }, onErr);
+  }
+
+  // --- PIN-Fenster ---
+  let creating = false;
+  const gateMsg = (t) => { $("gate-msg").textContent = t || ""; };
+  function setCreating(on) {
+    creating = on;
+    $("gate-pin2-wrap").hidden = !on;
+    $("gate-new").hidden = true;
+    $("gate-btn").textContent = on ? "Plan anlegen" : "Öffnen";
+    $("gate-text").textContent = on
+      ? "Wiederhole die PIN. Merkt sie euch gut: Ohne sie kommt niemand mehr an den Plan."
+      : "Gib eure 4-stellige PIN ein.";
+  }
+  function enter(name, pin, remember) {
+    me = name;
+    local.set("cali-name", name);
+    local.set("cali-pin", remember ? pin : null);
+    $("who").textContent = name;
+    $("gate").hidden = true;
+    document.body.classList.remove("locked");
+    setStatus("");
+    setTimeout(() => map.invalidateSize(), 50);
+  }
+  function explain(e) {
+    if (e && e.code === "no-config") return "Firebase ist noch nicht eingerichtet. Trag die Zugangsdaten in firebase-config.js ein (siehe ANLEITUNG).";
+    if (e && e.code === "permission-denied") return "Firebase hat den Zugriff verweigert. Prüf die Sicherheitsregeln aus der ANLEITUNG.";
+    return "Keine Verbindung. Prüf das Internet und versuch es noch einmal.";
+  }
+
+  $("gate-form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const pin = $("gate-pin").value.trim(), name = $("gate-name").value.trim();
+    if (!/^\d{4}$/.test(pin)) { gateMsg("Die PIN hat genau 4 Ziffern."); $("gate-pin").focus(); return; }
+    if (!name) { gateMsg("Trag deinen Namen ein, damit ihr seht, wer was eingetragen hat."); $("gate-name").focus(); return; }
+    if (creating && $("gate-pin2").value.trim() !== pin) { gateMsg("Die beiden PINs stimmen nicht überein."); $("gate-pin2").focus(); return; }
+    $("gate-btn").disabled = true; gateMsg("");
+    try {
+      const res = await openPlan(pin, creating);
+      if (res === "missing") {
+        gateMsg("Zu dieser PIN gibt es keinen Plan. Prüf die PIN oder leg einen neuen Plan an.");
+        $("gate-new").hidden = false;
+      } else {
+        enter(name, pin, $("gate-remember").checked);
+      }
+    } catch (e) { gateMsg(explain(e)); }
+    $("gate-btn").disabled = false;
+  });
+  $("gate-new").onclick = () => { gateMsg(""); setCreating(true); $("gate-pin2").focus(); };
+  $("logout").onclick = () => { local.set("cali-pin", null); location.reload(); };
+
+  async function gate() {
+    $("gate-name").value = local.get("cali-name") || "";
+    const pin = local.get("cali-pin"), name = local.get("cali-name");
+    if (pin && name) {
+      $("gate-text").textContent = "Einen Moment, der Plan wird geöffnet …";
+      try { if ((await openPlan(pin, false)) === "ok") { enter(name, pin, true); return; } } catch (e) {}
+      local.set("cali-pin", null);
+    }
+    setCreating(false);
+    $("gate-pin").focus();
+  }
+
+  render();
+  gate();
+})();
+</script>
+</body>
+</html>
