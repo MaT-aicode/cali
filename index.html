@@ -392,7 +392,7 @@
 
 <footer class="wrap who">Angemeldet als <strong id="who"></strong> <button type="button" class="ghost" id="logout">Abmelden</button></footer>
 
-<script src="firebase-config.js"></script>
+<script src="supabase-config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="mapdata.js"></script>
 <script src="ideas.js"></script>
@@ -1190,45 +1190,89 @@
     else setStatus("Speichern hat nicht geklappt. Versuch es gleich noch mal.", true);
   }
 
-  // --- Zugang per PIN und gemeinsamer Speicher (Firebase Firestore) ---
-  // Die PIN wird nirgends gespeichert: Aus ihr wird der Speicherort des Plans berechnet.
-  const FB = "https://www.gstatic.com/firebasejs/10.12.2/";
+  // --- Zugang per PIN und gemeinsamer Speicher (Supabase) ---
+  // Die PIN wird nirgends gespeichert: Aus ihr wird der Schlüssel des Plans berechnet.
+  // Jede Anfrage schickt diesen Schlüssel mit; die Datenbank gibt nur Einträge mit genau diesem Schlüssel heraus.
   const SALT = "antonia-kommt-nach-cali-2026:";
+  const POLL_MS = 4000;
   const local = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} },
   };
-  let fs = null, fdb = null;
+  let api = null;
 
   async function planKey(pin) {
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(SALT + pin));
     return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40);
   }
 
-  async function connect() {
-    if (fdb) return;
-    const cfg = window.FIREBASE_CONFIG;
-    if (!cfg || !cfg.apiKey || !cfg.projectId) throw { code: "no-config" };
-    const app = await import(FB + "firebase-app.js");
-    fs = await import(FB + "firebase-firestore.js");
-    fdb = fs.getFirestore(app.initializeApp(cfg));
+  function connect(key) {
+    const cfg = window.SUPABASE_CONFIG;
+    if (!cfg || !cfg.url || !cfg.key) throw { code: "no-config" };
+    const base = cfg.url.replace(/\/+$/, "") + "/rest/v1/";
+    const headers = { apikey: cfg.key, "x-plan": key, "Content-Type": "application/json" };
+    if (cfg.key.startsWith("eyJ")) headers.Authorization = "Bearer " + cfg.key; // ältere „anon“-Schlüssel
+    api = async (path, opts = {}) => {
+      const r = await fetch(base + path, { ...opts, headers: { ...headers, ...(opts.headers || {}) } });
+      if (!r.ok) throw { code: r.status === 401 || r.status === 403 ? "denied" : "http", status: r.status };
+      return r.status === 204 || opts.method && opts.method !== "GET" ? null : r.json();
+    };
   }
 
   // Kleine Hülle, damit der Rest der Seite mit db.collection(...).doc(...) arbeiten kann
   function makeDb(key) {
+    const caches = {}, listeners = {};
+    const refreshers = [];
+    const kick = () => refreshers.forEach((f) => f());
     return {
       collection(name) {
-        const c = fs.collection(fdb, "plaene", key, name);
+        const cache = caches[name] || (caches[name] = new Map());
         return {
           doc(id) {
-            const r = id ? fs.doc(c, id) : fs.doc(c);
-            return { id: r.id, set: (d) => fs.setDoc(r, d), update: (d) => fs.updateDoc(r, d), delete: () => fs.deleteDoc(r) };
-          },
-          orderBy(field) {
-            const q = fs.query(c, fs.orderBy(field));
+            const docId = id || (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
             return {
-              onSnapshot: (next, err) => fs.onSnapshot(q,
-                (s) => next({ docs: s.docs.map((d) => ({ id: d.id, data: () => d.data() })) }), err),
+              id: docId,
+              async set(d) {
+                await api(name, { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+                  body: JSON.stringify({ id: docId, plan: key, data: d, at: Number(d.at) || 0 }) });
+                cache.set(docId, d); kick();
+              },
+              async update(fields) {
+                const next = { ...(cache.get(docId) || {}), ...fields };
+                await api(name + "?id=eq." + encodeURIComponent(docId), { method: "PATCH", headers: { Prefer: "return=minimal" },
+                  body: JSON.stringify({ data: next, at: Number(next.at) || 0 }) });
+                cache.set(docId, next); kick();
+              },
+              async delete() {
+                await api(name + "?id=eq." + encodeURIComponent(docId), { method: "DELETE", headers: { Prefer: "return=minimal" } });
+                cache.delete(docId); kick();
+              },
+            };
+          },
+          orderBy() {
+            return {
+              onSnapshot(next, err) {
+                let last = "", busy = false, failed = 0;
+                const load = async () => {
+                  if (busy) return; busy = true;
+                  try {
+                    const rows = await api(name + "?select=id,data&order=at.asc");
+                    failed = 0;
+                    const sig = JSON.stringify(rows);
+                    if (sig !== last) {
+                      last = sig;
+                      cache.clear(); rows.forEach((r) => cache.set(r.id, r.data));
+                      next({ docs: rows.map((r) => ({ id: r.id, data: () => r.data })) });
+                    }
+                  } catch (e) { if (++failed === 3 && err) err(e); }
+                  busy = false;
+                };
+                refreshers.push(load);
+                listeners[name] = setInterval(() => { if (!document.hidden) load(); }, POLL_MS);
+                document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+                load();
+                return () => clearInterval(listeners[name]);
+              },
             };
           },
         };
@@ -1237,13 +1281,12 @@
   }
 
   async function openPlan(pin, create) {
-    await connect();
     const key = await planKey(pin);
-    const marker = fs.doc(fdb, "plaene", key);
-    const snap = await fs.getDoc(marker);
-    if (!snap.exists()) {
+    connect(key);
+    const found = await api("plaene?select=key&key=eq." + key);
+    if (!found.length) {
       if (!create) return "missing";
-      await fs.setDoc(marker, { erstellt: fs.serverTimestamp() });
+      await api("plaene", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ key }) });
     }
     db = makeDb(key);
     subscribe();
@@ -1251,7 +1294,7 @@
   }
 
   function subscribe() {
-    const onErr = () => setStatus("Die Verbindung zum Speicher ist abgebrochen. Lade die Seite neu.", true);
+    const onErr = () => setStatus("Die Verbindung zum Speicher hakt. Prüf das Internet; die Seite versucht es weiter.", true);
     tripCol().orderBy("at").onSnapshot((snap) => {
       trips = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => typeof t.name === "string");
       render();
@@ -1286,9 +1329,9 @@
     setTimeout(() => map.invalidateSize(), 50);
   }
   function explain(e) {
-    if (e && e.code === "no-config") return "Firebase ist noch nicht eingerichtet. Trag die Zugangsdaten in firebase-config.js ein (siehe ANLEITUNG).";
-    if (e && e.code === "permission-denied") return "Firebase hat den Zugriff verweigert. Prüf die Sicherheitsregeln aus der ANLEITUNG.";
-    return "Keine Verbindung. Prüf das Internet und versuch es noch einmal.";
+    if (e && e.code === "no-config") return "Der Speicher ist noch nicht eingerichtet. Trag die Zugangsdaten in supabase-config.js ein (siehe ANLEITUNG).";
+    if (e && e.code === "denied") return "Der Speicher hat den Zugriff verweigert. Prüf den Schlüssel in supabase-config.js.";
+    return "Keine Verbindung zum Speicher. Prüf das Internet und versuch es noch einmal.";
   }
 
   $("gate-form").addEventListener("submit", async (ev) => {
