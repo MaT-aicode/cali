@@ -11,47 +11,48 @@
 <link rel="stylesheet" href="leaflet.css">
 <style>
   /* Layout: eine Spalte; oben die Eingabe, darunter der Kalender (Balken über 13 Tage, Tage klappen auf) und die Karte vom Südwesten der USA */
+  /* Palette Kalifornien/USA: Pazifikblau, Mohnblumen-Orange (California Poppy), goldene Hügel, Old-Glory-Rot */
   :root {
-    --bg: #f7f6f1;
+    --bg: #fbf6ec;          /* Sand */
     --surface: #ffffff;
-    --wash: #efede5;
-    --fg: #1d2a24;
-    --muted: #5c6b63;
-    --accent: #1f6b4a;
-    --accent-2: #e39a2d;
-    --line: #dfe3dc;
-    --sea: #d9e6ec;
-    --land: #f1efe6;
-    --land-hi: #f7f0dc;
-    --land-far: #e7e5dc;
-    --park: #cfe3c4;
-    --border: #b9c2b8;
-    --road: #c9a46a;
-    --pin: #d23a3a;
-    --idea: #5b5fc7;        /* Vorschläge aus den Ideenlisten */
+    --wash: #f4ead6;
+    --fg: #172a3f;          /* Navy */
+    --muted: #5b6878;
+    --accent: #1d4e89;      /* Pazifik-/Navyblau */
+    --accent-2: #ec6f1c;    /* California Poppy */
+    --line: #e7dcc7;
+    --sea: #cfe3ef;
+    --land: #f7f0e1;
+    --land-hi: #fbe7bf;     /* goldene Hügel */
+    --land-far: #ece6d9;
+    --park: #d3e4c2;
+    --border: #c7b593;
+    --road: #c9553a;        /* rote Highway-Linien */
+    --pin: #c8102e;         /* Old Glory Red */
+    --idea: #1f8a8a;        /* Pazifik-Türkis für Vorschläge */
     /* Farben für Roadtrips */
-    --c1: #2a7f8f; --c2: #7a5aa6; --c3: #c8603f; --c4: #4f7f2f; --c5: #3f6fb5; --c6: #b4507a;
+    --c1: #1d4e89; --c2: #ec6f1c; --c3: #1f8a8a; --c4: #8b3a2b; --c5: #5b7f3a; --c6: #b8860b;
     --on-c: #ffffff;
     --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
     --font-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #121a16; --surface: #1a241f; --wash: #161f1b; --fg: #e8eee9; --muted: #9fb0a6;
-      --accent: #5fc496; --accent-2: #f0b25a; --line: #2a3832;
-      --sea: #0e1517; --land: #1d2622; --land-hi: #262a20; --land-far: #18201c; --park: #22382a;
-      --border: #3e4f46; --road: #8a6f45; --pin: #ff6b6b; --idea: #a5a8ff;
-      --c1: #6cc3d1; --c2: #b79be0; --c3: #f0957a; --c4: #9ccc72; --c5: #8fb2ee; --c6: #ec8db5;
-      --on-c: #10170f; color-scheme: dark;
+      --bg: #0e1726; --surface: #16233a; --wash: #121d30; --fg: #eef2f8; --muted: #9eacbf;
+      --accent: #7fb1f2; --accent-2: #ff9447; --line: #26364f;
+      --sea: #0a1220; --land: #1a2537; --land-hi: #2b2719; --land-far: #141d2c; --park: #1e3427;
+      --border: #3d4d66; --road: #c06a52; --pin: #ff5468; --idea: #5ccfcf;
+      --c1: #7fb1f2; --c2: #ff9447; --c3: #5ccfcf; --c4: #d98a73; --c5: #a6cc7e; --c6: #e6b84a;
+      --on-c: #0e1726; color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #121a16; --surface: #1a241f; --wash: #161f1b; --fg: #e8eee9; --muted: #9fb0a6;
-    --accent: #5fc496; --accent-2: #f0b25a; --line: #2a3832;
-    --sea: #0e1517; --land: #1d2622; --land-hi: #262a20; --land-far: #18201c; --park: #22382a;
-    --border: #3e4f46; --road: #8a6f45; --pin: #ff6b6b; --idea: #a5a8ff;
-    --c1: #6cc3d1; --c2: #b79be0; --c3: #f0957a; --c4: #9ccc72; --c5: #8fb2ee; --c6: #ec8db5;
-    --on-c: #10170f; color-scheme: dark;
+    --bg: #0e1726; --surface: #16233a; --wash: #121d30; --fg: #eef2f8; --muted: #9eacbf;
+    --accent: #7fb1f2; --accent-2: #ff9447; --line: #26364f;
+    --sea: #0a1220; --land: #1a2537; --land-hi: #2b2719; --land-far: #141d2c; --park: #1e3427;
+    --border: #3d4d66; --road: #c06a52; --pin: #ff5468; --idea: #5ccfcf;
+    --c1: #7fb1f2; --c2: #ff9447; --c3: #5ccfcf; --c4: #d98a73; --c5: #a6cc7e; --c6: #e6b84a;
+    --on-c: #0e1726; color-scheme: dark;
   }
   body {
     background: var(--bg); color: var(--fg);
@@ -263,11 +264,6 @@
   .add-row label { display: grid; gap: 0.2rem; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
   .add-row select, .add-row input { font: inherit; font-size: 0.95rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 0.4rem 0.5rem; text-transform: none; letter-spacing: 0; }
   .add-row .add-title { font-weight: 600; width: 100%; color: var(--fg); font-size: 0.95rem; }
-  .general { margin-top: 1rem; }
-  .general summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 0.9rem; }
-  .general ul { list-style: none; margin: 0.6rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
-  .general li button { font-weight: 400; font-size: 0.85rem; padding: 0.3rem 0.6rem; background: var(--surface); color: var(--fg); border: 1px solid var(--line); }
-  .general li button:hover { border-color: var(--idea); }
   @media (prefers-reduced-motion: reduce) {
     .leaflet-zoom-anim .leaflet-zoom-animated, .detail, .bar { transition: none; }
     .detail-card.flash, .pin-icon.drop svg { animation: none; }
@@ -324,9 +320,9 @@
 
 <header>
   <div class="wrap">
-    <div class="eyebrow">Kalifornien · Las Vegas · Nationalparks · 22.12.2026 – 03.01.2027</div>
+    <div class="eyebrow">Kalifornien · Nationalparks · 22.12.2026 – 03.01.2027</div>
     <h1>Antonia kommt nach <span>Cali</span></h1>
-    <p class="lead">Unsere gemeinsame Seite für den Urlaub. Tragt Events ein, sie landen sofort im Kalender und auf der Karte.</p>
+    <p class="lead">Unsere gemeinsame Seite für den Urlaub. Trage Events ein, sie landen sofort im Kalender und auf der Karte.</p>
   </div>
 </header>
 
@@ -383,10 +379,6 @@
       <div class="detail" id="idea-detail" aria-live="polite">
         <div class="detail-inner" id="idea-inner"></div>
       </div>
-      <details id="general-ideas" class="general">
-        <summary id="general-sum">Ideen ohne festen Ort</summary>
-        <ul id="general-list"></ul>
-      </details>
   </section>
 </main>
 
@@ -696,14 +688,6 @@
     renderIdea(true);
   }
 
-  const general = IDEAS.filter((i) => !hasIdeaPos(i));
-  $("general-sum").textContent = general.length + " Ideen ohne festen Ort";
-  general.forEach((i) => {
-    const li = document.createElement("li");
-    const b = el("button", null, i.t); b.type = "button"; b.onclick = () => showIdea(i.id);
-    li.append(b); $("general-list").append(li);
-  });
-  $("general-ideas").hidden = !general.length;
 
   function pinIcon(a) {
     const t = tripOf(a);
