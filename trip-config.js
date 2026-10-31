@@ -55,7 +55,8 @@ window.TRIP = {
   ],
 
   // Keine Fotos: Die Seite liegt öffentlich auf GitHub Pages. Fotos würden ohne PIN abrufbar sein.
-  heroAccent: "#ffb27a",              // Farbe des Titel-Akzents auf dem Foto
+  heroGradient: "linear-gradient(170deg, #17479c 0%, #2f78d6 45%, #6fb0ef 78%, #f2a36b 100%)", // Himmel über dem Canyon statt Foto
+  heroAccent: "#ffd2a8",              // Farbe des Titel-Akzents auf dem Foto
 
   countdown: {                        // Tageszähler im Kopfbereich und Checkpoints im Zeitstrahl
     unit: "Tage, bis Antonia kommt",
@@ -74,20 +75,20 @@ window.TRIP = {
     ],
   },
 
-  palette: {                          // Farben aus dem Zion-Foto: Canyonrot, Sandstein, Himmelblau, Talgrün
+  palette: {                          // Zion-Farben als Akzente (Himmelblau, Canyonrot, Talgrün, Sandstein) auf kühlem Grund
     light: {
-      bg: "#fbf3ea", surface: "#fffdfa", wash: "#f5e4d4", fg: "#2e1a12", muted: "#7b5c4c",
-      accent: "#1f5fbf", "accent-2": "#c2492a", line: "#ecd5c1", sea: "#cfe3f8", land: "#f9efe3",
-      "land-hi": "#f5d6b8", "land-far": "#efe4d8", park: "#d5e6bd", border: "#c8a183", road: "#b0482c",
+      bg: "#f5f8fc", surface: "#ffffff", wash: "#eaf1f9", fg: "#1b2433", muted: "#5b6779",
+      accent: "#1f5fbf", "accent-2": "#c8472a", line: "#dde5ef", sea: "#cfe3f8", land: "#f6f3ee",
+      "land-hi": "#f3dcc3", "land-far": "#eceff3", park: "#d5e6bd", border: "#b9c4d2", road: "#b0482c",
       pin: "#d0342c", idea: "#3e8a3a",
       c1: "#1f5fbf", c2: "#e07b33", c3: "#3e8a3a", c4: "#8a3b22", c5: "#2a96b8", c6: "#b98a16", "on-c": "#ffffff",
     },
     dark: {
-      bg: "#1b120d", surface: "#281a12", wash: "#21160f", fg: "#f7ece3", muted: "#c4a493",
-      accent: "#82b4ff", "accent-2": "#f08559", line: "#3f2b20", sea: "#0f1b2c", land: "#2a1d16",
-      "land-hi": "#3d2619", "land-far": "#1f1611", park: "#22351d", border: "#5c4134", road: "#d06a48",
+      bg: "#0e1525", surface: "#161f34", wash: "#121a2d", fg: "#eef3fb", muted: "#a3afc3",
+      accent: "#82b4ff", "accent-2": "#f2875c", line: "#25304a", sea: "#0a1220", land: "#1a2235",
+      "land-hi": "#33291f", "land-far": "#131a29", park: "#1c3324", border: "#3a4864", road: "#d06a48",
       pin: "#ff5c4f", idea: "#8fd07a",
-      c1: "#82b4ff", c2: "#f0a060", c3: "#8fd07a", c4: "#d98a6a", c5: "#6cc8e0", c6: "#e6c04a", "on-c": "#1b120d",
+      c1: "#82b4ff", c2: "#f0a060", c3: "#8fd07a", c4: "#d98a6a", c5: "#6cc8e0", c6: "#e6c04a", "on-c": "#0e1525",
     },
   },
 };

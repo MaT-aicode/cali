@@ -1200,6 +1200,7 @@
 
   // Fotos aus trip-config.js
   if (TRIP.hero) { $("hero").style.setProperty("--hero-img", "url(\"" + photoUrl(TRIP.hero) + "\")"); $("hero").classList.add("has-photo"); }
+  else if (TRIP.heroGradient) $("hero").style.setProperty("--hero-img", TRIP.heroGradient); // Farbverlauf statt Foto
   if (TRIP.heroAccent) $("hero").style.setProperty("--hero-accent", TRIP.heroAccent);
   if (TRIP.heroPosition) $("hero").style.setProperty("--hero-pos", TRIP.heroPosition);
   if (TRIP.mapPhoto) $("to-map").style.setProperty("--map-img", "url(\"" + photoUrl(TRIP.mapPhoto) + "\")");
