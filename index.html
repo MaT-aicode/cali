@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Antonia kommt nach Cali</title>
+<title>Urlaubsplaner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Source+Sans+3:wght@400;600&display=swap">
 <link rel="stylesheet" href="leaflet.css">
+<script src="trip-config.js"></script>
 <style>
-  /* Layout: eine Spalte; oben die Eingabe, darunter der Kalender (Balken über 13 Tage, Tage klappen auf) und die Karte vom Südwesten der USA */
-  /* Palette Kalifornien/USA: Pazifikblau, Mohnblumen-Orange (California Poppy), goldene Hügel, Old-Glory-Rot */
+  /* Layout: eine Spalte; Kopfbereich mit Foto und Tageszähler, darunter Eingabe und Zeitstrahl von oben nach unten (Countdown-Checkpoints, Reisetage), dann die Box „Zur Karte“; die Karte öffnet als eigene Ansicht.
+     Alles Reisespezifische steht in trip-config.js; die Farben hier sind die Grundpalette und werden dort überschrieben. */
   :root {
     --bg: #fbf6ec;          /* Sand */
     --surface: #ffffff;
@@ -116,42 +117,92 @@
   #status { margin: 0 0 0.5rem; min-height: 1.6em; color: var(--muted); font-size: 0.95rem; }
   #status.warn { color: var(--pin); }
 
-  /* Kalender: Balken über die 13 Reisetage */
-  .cal-scroll { overflow-x: auto; padding-bottom: 0.4rem; }
-  .cal { display: grid; grid-template-columns: repeat(13, minmax(4.4rem, 1fr)); row-gap: 0.4rem; position: relative; }
-  .cal-h {
-    all: unset; box-sizing: border-box; cursor: pointer; grid-row: 1; display: grid; justify-items: center; align-content: start; gap: 0.05rem;
-    padding: 0.35rem 0.2rem 0.45rem; border-radius: 10px 10px 0 0; font-variant-numeric: tabular-nums; text-align: center;
+  /* Kopfbereich: Foto (TRIP.hero) mit Titel und Tageszähler */
+  header.hero {
+    position: relative; color: #fff; border: 0;
+    display: grid; align-content: end;
+    padding-block: clamp(3rem, 9vw, 5rem) clamp(1.75rem, 5vw, 3rem);
+    background: var(--hero-img, linear-gradient(135deg, var(--accent), var(--accent-2))) var(--hero-pos, center 30%) / cover no-repeat, var(--fg);
   }
-  .cal-h .wd { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-  .cal-h .dt { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; line-height: 1.1; }
-  .cal-h .tg { font-size: 0.65rem; color: var(--accent); font-weight: 600; line-height: 1.15; min-height: 0.75rem; }
-  .cal-h:hover .dt { color: var(--accent); }
-  .cal-h:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; }
-  .cal-h.open { background: var(--accent); }
-  .cal-h.open .wd, .cal-h.open .dt, .cal-h.open .tg { color: var(--bg); }
-  .cal-bg { border-left: 1px solid var(--line); cursor: pointer; }
-  .cal-bg.we { background: var(--wash); }
-  .cal-bg.open { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-  .cal-bg.today { box-shadow: inset 0 2px 0 var(--accent-2); }
-  .cal-bg.first { border-left-color: transparent; }
-  .bar {
-    all: unset; box-sizing: border-box; cursor: pointer; z-index: 1; margin: 0 3px; height: 2rem; min-width: 0;
-    display: flex; align-items: center; gap: 0.35rem; padding: 0 0.7rem; border-radius: 999px;
-    font-size: 0.8rem; font-weight: 600; line-height: 1; white-space: nowrap;
-    transition: transform .15s ease, box-shadow .15s ease;
+  header.hero.has-photo { min-height: clamp(30rem, 88vh, 46rem); }   /* mit Foto: Text unten, Gesichter oben frei */
+  header.hero:not(.has-photo)::before { background: radial-gradient(120% 90% at 85% 0%, rgba(255, 255, 255, .18), transparent 60%), linear-gradient(180deg, transparent 40%, rgba(25, 12, 8, .35)); }
+  header.hero::before {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(25, 12, 8, 0) 35%, rgba(25, 12, 8, .55) 62%, rgba(25, 12, 8, .86) 100%);
   }
-  .bar .lbl { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-  .bar .meta { font-weight: 400; opacity: 0.8; flex: none; }
-  .bar:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, .14); }
-  .bar:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
-  .bar.trip { background: var(--c); color: var(--on-c); }
-  .bar.ev { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); color: var(--fg); border-radius: 8px; padding: 0 0.5rem; }
-  .bar.ev .t { color: var(--accent); font-variant-numeric: tabular-nums; flex: none; }
-  .cal-empty { grid-column: 1 / -1; grid-row: 2 / span 2; align-self: center; justify-self: center; color: var(--muted); font-size: 0.9rem; z-index: 1; pointer-events: none; padding-inline: 1rem; text-align: center; }
-  .cal-legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; color: var(--muted); font-size: 0.8rem; margin-top: 0.6rem; }
-  .cal-legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
-  .cal-legend i { width: 1.4rem; height: 0.7rem; border-radius: 99px; display: inline-block; }
+  header.hero .wrap { position: relative; width: 100%; box-sizing: border-box; }
+  header.hero .eyebrow { color: #ffe3c9; }
+  header.hero h1 { color: #fff; text-shadow: 0 2px 22px rgba(0, 0, 0, .35); }
+  header.hero h1 span { color: var(--hero-accent, #ffb27a); }
+  header.hero .lead { color: rgba(255, 255, 255, .9); }
+  .count { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.2rem 0.9rem; margin-top: 1.6rem; }
+  .count-num { font-family: var(--font-display); font-weight: 800; font-size: clamp(3.6rem, 17vw, 6.5rem); line-height: 0.85; font-variant-numeric: tabular-nums; }
+  .count-unit { font-weight: 600; font-size: 1.05rem; line-height: 1.25; max-width: 13rem; padding-bottom: 0.35rem; }
+  .count-msg { flex-basis: 100%; margin: 0.55rem 0 0; font-family: var(--font-display); font-weight: 500; font-size: clamp(1.2rem, 4.5vw, 1.6rem); text-wrap: balance; }
+
+  /* Zeitstrahl von oben nach unten: links Datum und Linie (daneben Roadtrip-Streifen), rechts die Beschreibung */
+  .vt { list-style: none; margin: 1.5rem 0 0; padding: 0; --date-w: 4.4rem; }
+  .vt-row { display: grid; grid-template-columns: var(--date-w) 1.5rem var(--lanes-w, 0px) minmax(0, 1fr); column-gap: 0.55rem; scroll-margin-top: 1rem; }
+  .vt-date { text-align: right; padding-top: 0.6rem; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .vt-date .wd { display: block; font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .vt-date .dt { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; }
+  .vt-rail { position: relative; }
+  .vt-rail::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--line); }
+  .vt-row:first-child .vt-rail::before { top: 0.9rem; }
+  .vt-row:last-child .vt-rail::before { bottom: auto; height: 0.9rem; }
+  .vt-row.done .vt-rail::before { background: var(--accent); }
+  .vt-dot { position: absolute; left: 50%; top: 0.75rem; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--bg); border: 2px solid var(--border); z-index: 1; box-sizing: border-box; }
+  .vt-row.done .vt-dot { background: var(--accent); border-color: var(--accent); }
+  .vt-row.has .vt-dot { background: var(--pin); border-color: var(--pin); }
+  .vt-row.today .vt-dot { background: var(--accent-2); border-color: var(--accent-2); animation: beat 2s ease-in-out infinite; }
+  @keyframes beat { 0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-2) 35%, transparent); } 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-2) 10%, transparent); } }
+  .vt-lanes { display: grid; grid-template-columns: repeat(var(--lanes, 0), 7px); column-gap: 3px; }
+  .vt-lane { background: var(--c); }
+  .vt-lane.none { background: transparent; }
+  .vt-lane.s { margin-top: 0.75rem; border-radius: 99px 99px 0 0; }
+  .vt-lane.e { margin-bottom: 0.75rem; border-radius: 0 0 99px 99px; }
+  .vt-lane.s.e { border-radius: 99px; }
+  .vt-body { min-width: 0; padding-block: 0.3rem 0.85rem; }
+  .vt-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; transition: border-color .2s; }
+  .vt-card.open { border-color: var(--accent); box-shadow: 0 6px 20px color-mix(in srgb, var(--fg) 8%, transparent); }
+  .vt-head { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.6rem; padding: 0.6rem 0.85rem; }
+  .vt-head:hover .vt-more { text-decoration: underline; }
+  .vt-head:focus-visible { outline: 2px solid var(--accent-2); outline-offset: -2px; border-radius: 12px; }
+  .vt-title { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; }
+  .vt-more { margin-left: auto; color: var(--accent); font-size: 0.8rem; font-weight: 600; }
+  .vt-evs { list-style: none; margin: 0; padding: 0; }
+  .vt-ev { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: 3.1rem minmax(0, 1fr); gap: 0 0.5rem; padding: 0.45rem 0.85rem; border-top: 1px solid var(--line); }
+  .vt-ev:hover { background: var(--wash); }
+  .vt-ev .t { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+  .vt-ev .nm { font-weight: 600; overflow-wrap: anywhere; }
+  .vt-ev .pl { grid-column: 2; color: var(--muted); font-size: 0.82rem; overflow-wrap: anywhere; }
+  .vt-ev .sw { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--c); margin-right: 0.35rem; vertical-align: 0.1em; }
+  .vt-empty { margin: 0; padding: 0 0.85rem 0.65rem; color: var(--muted); font-size: 0.9rem; }
+  .vt-card .detail-card { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+  .vt-card .detail-head h4 { font-size: 1.15rem; }
+  .vt-sep .vt-body { padding-top: 1.2rem; }
+  .vt-sep h3 { font-family: var(--font-display); font-weight: 800; font-size: 1.35rem; margin: 0; }
+  .vt-sep p { margin: 0.1rem 0 0; color: var(--muted); }
+  .vt-sep .vt-dot { width: 18px; height: 18px; margin-left: -9px; top: 1.45rem; background: var(--accent-2); border-color: var(--accent-2); }
+
+  /* Countdown im Zeitstrahl: Heute und Checkpoints mit Fotos */
+  .vt-now { background: color-mix(in srgb, var(--accent-2) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line)); border-radius: 12px; padding: 0.7rem 0.9rem; }
+  .vt-now b { font-family: var(--font-display); font-size: 1.6rem; color: var(--accent-2); font-variant-numeric: tabular-nums; }
+  .vt-now p { margin: 0.15rem 0 0; }
+  .vt-cp { display: grid; grid-template-columns: 6.2rem minmax(0, 1fr); gap: 0.9rem; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 0.6rem 0.9rem 0.6rem 0.6rem; }
+  .vt-cp.no-photo { grid-template-columns: minmax(0, 1fr); padding-left: 0.9rem; }
+  .vt-cp img { width: 100%; max-width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 6px; background: var(--wash); transform: rotate(-2.5deg); box-shadow: 0 3px 10px rgba(0, 0, 0, .18); border: 3px solid #fff; box-sizing: border-box; }
+  .vt-cp p { margin: 0; font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; line-height: 1.3; text-wrap: balance; overflow-wrap: anywhere; }
+  .vt-cp.locked img { filter: blur(9px) saturate(.5); }
+  .vt-cp.locked p { font-family: var(--font-body); font-size: 0.92rem; color: var(--muted); }
+  .vt-row.current .vt-cp, .vt-card .vt-cp { border-color: var(--accent-2); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-2) 40%, transparent); }
+  .vt-card .vt-cp { margin: 0 0.6rem 0.6rem; }
+  @media (max-width: 560px) {
+    .vt { --date-w: 3.2rem; }
+    .vt-row { column-gap: 0.35rem; }
+    .vt-cp { grid-template-columns: 4.6rem minmax(0, 1fr); gap: 0.7rem; }
+    .vt-cp p { font-size: 1.02rem; }
+  }
   #unsched { margin-top: 1rem; }
   #unsched h3 { font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.4rem; font-weight: 600; }
   #unsched ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); }
@@ -162,6 +213,34 @@
   .item:hover { border-color: var(--accent); }
   .item .nm { font-weight: 600; overflow-wrap: anywhere; }
   .item .pl { color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
+
+  /* Box „Zur Karte“ und die Karte als eigene Ansicht */
+  .to-map {
+    all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 0.2rem; width: 100%; min-height: 11rem; align-content: end;
+    padding: 1.4rem 1.5rem; border-radius: 16px; color: #fff; position: relative; overflow: hidden;
+    background: var(--map-img, linear-gradient(135deg, var(--accent), var(--accent-2))) center 55% / cover no-repeat, var(--accent);
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--fg) 18%, transparent);
+  }
+  .to-map::before { content: ""; position: absolute; inset: 0; background: linear-gradient(200deg, rgba(20, 10, 6, 0) 20%, rgba(20, 10, 6, .72) 100%); }
+  .to-map > * { position: relative; }
+  .to-map .tm-title { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.8rem, 7vw, 2.4rem); line-height: 1; }
+  .to-map .tm-sub { opacity: 0.92; }
+  .to-map .tm-go { justify-self: start; margin-top: 0.6rem; background: #fff; color: var(--accent); font-weight: 600; border-radius: 99px; padding: 0.35rem 0.9rem; font-size: 0.9rem; transition: transform .15s; }
+  .to-map:hover .tm-go { transform: translateX(4px); }
+  .to-map:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 3px; }
+  body.map-open { overflow: hidden; }
+  .map-view { position: fixed; inset: 0; z-index: 4000; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; }
+  .mv-bar {
+    position: sticky; top: 0; z-index: 1100; display: flex; align-items: center; gap: 0.75rem; background: var(--surface); border-bottom: 1px solid var(--line);
+    padding-top: max(0.6rem, env(safe-area-inset-top, 0px)); padding-bottom: 0.6rem;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .mv-bar .mv-title { font-family: var(--font-display); font-weight: 800; font-size: 1.2rem; }
+  .mv-body { padding-block: 0.9rem 2rem; }
+  .map-view #map { height: calc(100vh - 10rem); height: calc(100dvh - 10rem); min-height: 20rem; }
+  .map-status { margin: 0 0 0.5rem; min-height: 1.4em; color: var(--muted); font-size: 0.92rem; }
+  .gate-photo { width: 7rem; height: 7rem; border-radius: 50%; object-fit: cover; border: 4px solid var(--surface); box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
+  @media (prefers-reduced-motion: reduce) { .vt-row.today .vt-dot { animation: none; } }
 
   /* Detailansicht eines Tages */
   .detail { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .45s cubic-bezier(.2,.7,.2,1), opacity .3s ease; }
@@ -300,7 +379,8 @@
 
 <div class="gate" id="gate">
   <form class="gate-card" id="gate-form" autocomplete="off">
-    <h1 class="gate-title">Antonia kommt nach <span>Cali</span></h1>
+    <img class="gate-photo" id="gate-photo" alt="" hidden>
+    <h1 class="gate-title" data-trip-title></h1>
     <p class="gate-text" id="gate-text">Einen Moment …</p>
     <label for="gate-pin">PIN
       <input class="pin" id="gate-pin" name="gate-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" required>
@@ -309,7 +389,7 @@
       <input class="pin" id="gate-pin2" name="gate-pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off">
     </label>
     <label for="gate-name">Dein Name
-      <input id="gate-name" name="gate-name" maxlength="30" placeholder="z. B. Antonia" required>
+      <input id="gate-name" name="gate-name" maxlength="30" placeholder="Dein Name" required>
     </label>
     <label class="gate-check" for="gate-remember"><input type="checkbox" id="gate-remember" checked>Auf diesem Gerät angemeldet bleiben</label>
     <button type="submit" id="gate-btn">Öffnen</button>
@@ -318,17 +398,22 @@
   </form>
 </div>
 
-<header>
+<header class="hero" id="hero">
   <div class="wrap">
-    <div class="eyebrow">Kalifornien · Nationalparks · 22.12.2026 – 03.01.2027</div>
-    <h1>Antonia kommt nach <span>Cali</span></h1>
-    <p class="lead">Unsere gemeinsame Seite für den Urlaub. Trage Events ein, sie landen sofort im Kalender und auf der Karte.</p>
+    <div class="eyebrow" id="trip-eyebrow"></div>
+    <h1 data-trip-title></h1>
+    <p class="lead" id="trip-lead"></p>
+    <div class="count" id="count" aria-live="polite">
+      <span class="count-num" id="count-num"></span>
+      <span class="count-unit" id="count-unit"></span>
+      <p class="count-msg" id="count-msg"></p>
+    </div>
   </div>
 </header>
 
 <main class="wrap">
   <section id="cal-block">
-    <h2>Kalender</h2>
+    <h2>Unser Zeitstrahl</h2>
     <form id="act-form" class="add-card" autocomplete="off">
       <div class="seg" role="radiogroup" aria-label="Dauer des Events">
         <button type="button" class="seg-btn on" id="mode-one" role="radio" aria-checked="true">Ein Tag</button>
@@ -336,7 +421,7 @@
       </div>
       <div class="fields">
         <label for="act-name" class="grow">Event
-          <input id="act-name" name="act-name" required maxlength="100" placeholder="z. B. Griffith Observatory">
+          <input id="act-name" name="act-name" required maxlength="100" placeholder="">
         </label>
         <label for="act-place" class="mid">Ort (optional)
           <input id="act-place" name="act-place" maxlength="80" placeholder="wenn nicht schon drinsteht">
@@ -349,42 +434,52 @@
         </label>
         <button type="submit" id="btn-add">Eintragen</button>
       </div>
-      <p class="add-hint" id="add-hint">Tipp: Klick im Kalender auf einen Tag, dann ist er hier schon ausgewählt.</p>
+      <p class="add-hint" id="add-hint">Tipp: Klick im Zeitstrahl auf einen Tag, dann ist er hier schon ausgewählt.</p>
     </form>
     <p id="status" role="status"></p>
 
-    <div>
-      <div class="cal-scroll" id="cal-scroll" tabindex="0" aria-label="Kalender vom 22. Dezember bis 3. Januar">
-        <div class="cal" id="cal"></div>
-      </div>
+    <ol class="vt" id="vt" aria-label="Zeitstrahl bis zur Reise und alle Reisetage"></ol>
+    <div id="detail-park" hidden>
       <div class="detail" id="day-detail" aria-live="polite">
         <div class="detail-inner" id="detail-inner"></div>
       </div>
-      <div class="cal-legend" id="cal-legend"></div>
-      <div id="unsched" hidden>
-        <h3>Noch ohne Tag</h3>
-        <ul id="unsched-list"></ul>
-      </div>
+    </div>
+    <div id="unsched" hidden>
+      <h3>Noch ohne Tag</h3>
+      <ul id="unsched-list"></ul>
     </div>
   </section>
 
-  <section id="map-block">
-      <h2>Karte</h2>
-      <div class="map-legend">
-        <span><i class="lg-pin"></i>Eure Events</span>
-        <span><i class="lg-idea"></i>Vorschläge, beim Hineinzoomen mit Namen</span>
-        <span><i class="lg-idea added"></i>Vorschlag ist schon im Kalender</span>
-      </div>
-      <div id="map" aria-label="Karte von Kalifornien, Nevada und den Nationalparks mit unseren Events und Vorschlägen"></div>
-      <div class="detail" id="idea-detail" aria-live="polite">
-        <div class="detail-inner" id="idea-inner"></div>
-      </div>
+  <section aria-label="Karte">
+    <button type="button" class="to-map" id="to-map">
+      <span class="tm-title">Zur Karte</span>
+      <span class="tm-sub">Eure Nadeln und alle Vorschläge auf einen Blick</span>
+      <span class="tm-go">Karte öffnen →</span>
+    </button>
   </section>
 </main>
 
 <footer class="wrap who">Angemeldet als <strong id="who"></strong> <button type="button" class="ghost" id="logout">Abmelden</button></footer>
 
-<script src="supabase-config.js"></script>
+<div class="map-view" id="map-view" hidden role="dialog" aria-label="Karte">
+  <div class="mv-bar">
+    <button type="button" class="ghost" id="map-back">← Zurück zum Zeitstrahl</button>
+    <span class="mv-title">Karte</span>
+  </div>
+  <div class="mv-body wrap" id="map-block">
+    <div class="map-legend">
+      <span><i class="lg-pin"></i>Eure Events</span>
+      <span><i class="lg-idea"></i>Vorschläge, beim Hineinzoomen mit Namen</span>
+      <span><i class="lg-idea added"></i>Vorschlag ist schon im Zeitstrahl</span>
+    </div>
+    <p class="map-status" id="map-status" role="status"></p>
+    <div id="map" aria-label="Karte mit unseren Events und Vorschlägen"></div>
+    <div class="detail" id="idea-detail" aria-live="polite">
+      <div class="detail-inner" id="idea-inner"></div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="mapdata.js"></script>
 <script src="ideas.js"></script>
@@ -393,14 +488,38 @@
   const $ = (id) => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const statusEl = $("status");
-  const setStatus = (msg, warn) => { statusEl.textContent = msg || ""; statusEl.classList.toggle("warn", !!warn); };
+  const setStatus = (msg, warn) => {
+    for (const e of [statusEl, document.getElementById("map-status")]) { if (e) { e.textContent = msg || ""; e.classList.toggle("warn", !!warn); } }
+  };
   const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   const motion = () => (matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 
-  // --- Reisetage 22.12.2026 bis 03.01.2027 ---
+  // --- Reise aus trip-config.js: Texte, Farben, Reisetage ---
+  const TRIP = window.TRIP || {};
+  const EX = TRIP.examples || {};
+  document.title = TRIP.title || "Urlaubsplaner";
+  document.querySelectorAll("[data-trip-title]").forEach((h) => {
+    h.textContent = TRIP.title || "Urlaubsplaner";
+    if (TRIP.titleAccent && h.textContent.endsWith(TRIP.titleAccent)) {
+      h.textContent = h.textContent.slice(0, -TRIP.titleAccent.length);
+      h.append(el("span", null, TRIP.titleAccent));
+    }
+  });
+  $("trip-eyebrow").textContent = TRIP.eyebrow || "";
+  $("trip-lead").textContent = TRIP.lead || "Unsere gemeinsame Seite für den Urlaub. Trage Events ein, sie landen sofort im Zeitstrahl und auf der Karte.";
+  if (TRIP.palette) {
+    const block = (vars) => Object.entries(vars || {}).map(([k, v]) => "--" + k + ":" + v + ";").join("");
+    const st = document.createElement("style");
+    st.textContent = ":root{" + block(TRIP.palette.light) + "}" +
+      "@media (prefers-color-scheme: dark){:root:not([data-theme=light]){" + block(TRIP.palette.dark) + "color-scheme:dark}}" +
+      ":root[data-theme=dark]{" + block(TRIP.palette.dark) + "color-scheme:dark}";
+    document.head.append(st);
+  }
+
   const isoOf = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const parseIso = (s) => { const [y, m, dd] = String(s).split("-").map(Number); return new Date(y, m - 1, dd); };
   const DAYS = [];
-  for (let d = new Date(2026, 11, 22); d <= new Date(2027, 0, 3); d.setDate(d.getDate() + 1)) {
+  for (let d = parseIso(TRIP.start), end = parseIso(TRIP.end); d <= end; d.setDate(d.getDate() + 1)) {
     DAYS.push({
       iso: isoOf(d),
       wd: d.toLocaleDateString("de-DE", { weekday: "short" }).replace(".", ""),
@@ -409,12 +528,11 @@
     });
   }
   const dayIdx = (iso) => DAYS.findIndex((d) => d.iso === iso);
-  const TAGS = {
-    "2026-12-22": "Ankunft", "2026-12-24": "Heiligabend", "2026-12-25": "1. Weihnachtstag",
-    "2026-12-31": "Silvester", "2027-01-01": "Neujahr", "2027-01-03": "Abreise",
-  };
+  const TAGS = TRIP.tags || {};
   const dayLabel = (iso) => { const d = DAYS.find((x) => x.iso === iso); return d ? d.wd + " " + d.dt : "Noch offen"; };
-  const todayIso = isoOf(new Date());
+  // Vorschau: ?heute=JJJJ-MM-TT tut so, als wäre dieser Tag (zum Ansehen der Checkpoints)
+  const fakeToday = new URLSearchParams(location.search).get("heute");
+  const todayIso = /^\d{4}-\d{2}-\d{2}$/.test(fakeToday || "") ? fakeToday : isoOf(new Date());
 
   function fillDaySelect(sel, value, emptyLabel) {
     sel.textContent = "";
@@ -433,34 +551,37 @@
     $("mode-multi").classList.toggle("on", m); $("mode-multi").setAttribute("aria-checked", String(m));
     $("end-wrap").hidden = !m;
     $("day-lbl").textContent = m ? "von" : "Tag";
-    $("act-name").placeholder = m ? "z. B. Roadtrip Vegas, Zion und Bryce" : "z. B. Griffith Observatory";
+    $("act-name").placeholder = "z. B. " + (m ? EX.multi || "Roadtrip" : EX.single || "Stadtrundgang");
     $("add-hint").textContent = m
-      ? "Jeder Tag bekommt einen eigenen Eintrag, den du danach im Kalender einzeln bearbeiten kannst."
-      : "Tipp: Klick im Kalender auf einen Tag, dann ist er hier schon ausgewählt.";
+      ? "Jeder Tag bekommt einen eigenen Eintrag, den du danach im Zeitstrahl einzeln bearbeiten kannst."
+      : "Tipp: Klick im Zeitstrahl auf einen Tag, dann ist er hier schon ausgewählt.";
     if (!m) $("act-end").value = "";
   }
+  setMode(false);
   $("mode-one").onclick = () => setMode(false);
   $("mode-multi").onclick = () => setMode(true);
 
-  // --- Grundkarte: Südwesten der USA aus eingebetteten Daten (keine Kacheln von außen) ---
-  const REGION = [[32.4, -123.3], [39.6, -109.3]];
+  // --- Grundkarte aus eingebetteten Daten (mapdata.js), Ausschnitt aus trip-config.js ---
+  const MAPCFG = TRIP.map || {};
+  const REGION = MAPCFG.view;
+  const MAXB = MAPCFG.maxBounds;
   const map = L.map("map", {
-    preferCanvas: true, renderer: L.canvas({ padding: 0.6 }), minZoom: 5, maxZoom: 17,
+    preferCanvas: true, renderer: L.canvas({ padding: 0.6 }), minZoom: MAPCFG.minZoom || 5, maxZoom: 17,
     zoomSnap: 0, zoomDelta: 1, wheelPxPerZoomLevel: 15, wheelDebounceTime: 5, // stufenlos, mit Touchpad und Mausrad zügig
     inertia: true, inertiaDeceleration: 2200, easeLinearity: 0.25,
-    maxBounds: [[27, -131], [48, -99]], maxBoundsViscosity: 0.6,
+    maxBounds: MAXB, maxBoundsViscosity: 0.6,
     touchZoom: true, dragging: true, doubleClickZoom: true, bounceAtZoomLimits: false, // Zoomen mit zwei Fingern am Handy
-  }).fitBounds(REGION);
+  }).setView([(REGION[0][0] + REGION[1][0]) / 2, (REGION[0][1] + REGION[1][1]) / 2], 6); // genauer Ausschnitt beim ersten Öffnen
   map.attributionControl.setPrefix(false);
-  map.attributionControl.addAttribution("Grenzen: geoBoundaries (CC BY 4.0) · Straßen und Parks: Natural Earth");
+  map.attributionControl.addAttribution(MAPCFG.attribution || "Grenzen: geoBoundaries (CC BY 4.0) · Straßen und Parks: Natural Earth");
 
   const data = window.MAPDATA || { states: [], neighbors: [], roads: [], parks: [] };
-  const ROUTE_STATES = /^(California|Nevada|Arizona|Utah)$/;
+  const HIGHLIGHT = new Set(MAPCFG.highlight || []);
   const baseLayer = L.layerGroup().addTo(map);
   const neighborPolys = (data.neighbors || []).map((r) => L.polygon(r, { interactive: false, weight: 1, fillOpacity: 1 }).addTo(baseLayer));
   const statePolys = data.states.map((s) => {
     const p = L.polygon(s.c, { interactive: false, weight: 1.2, fillOpacity: 1 });
-    p._hi = ROUTE_STATES.test(s.n);
+    p._hi = HIGHLIGHT.has(s.n);
     return p.addTo(baseLayer);
   });
   const parkPolys = (data.parks || []).map((p) => L.polygon(p.c, { interactive: false, weight: 0.8, fillOpacity: 0.9 }).addTo(baseLayer));
@@ -472,19 +593,11 @@
   });
 
   const stateLabels = L.layerGroup().addTo(map);
-  [["Kalifornien", 37.2, -119.6], ["Nevada", 39.3, -116.9], ["Arizona", 34.3, -111.7], ["Utah", 39.4, -111.6]]
+  (MAPCFG.regionLabels || [])
     .forEach(([n, lat, lng]) => L.marker([lat, lng], { interactive: false, keyboard: false,
       icon: L.divIcon({ className: "state-label", html: n, iconSize: null }) }).addTo(stateLabels));
 
-  const cities = [
-    ["Los Angeles", 34.0522, -118.2437, true], ["San Francisco", 37.7749, -122.4194, true], ["Las Vegas", 36.1699, -115.1398, true],
-    ["San Diego", 32.7157, -117.1611], ["Sacramento", 38.5816, -121.4944], ["Fresno", 36.7378, -119.7871],
-    ["Santa Barbara", 34.4208, -119.6982], ["Monterey", 36.6002, -121.8947], ["San Luis Obispo", 35.2828, -120.6596],
-    ["Palm Springs", 33.8303, -116.5453], ["Barstow", 34.8958, -117.0173], ["Bakersfield", 35.3733, -119.0187],
-    ["Reno", 39.5296, -119.8138], ["St. George", 37.0965, -113.5684], ["Kanab", 37.0475, -112.5263],
-    ["Page", 36.9147, -111.4558], ["Flagstaff", 35.1983, -111.6513], ["Phoenix", 33.4484, -112.074],
-    ["Moab", 38.5733, -109.5498], ["Salt Lake City", 40.7608, -111.891],
-  ];
+  const cities = MAPCFG.cities || []; // [Name, lat, lng, groß?]
   const cityLayer = L.layerGroup().addTo(map);
   cities.forEach(([n, lat, lng, big]) => {
     const html = big ? "<b>" + n + "</b>" : "<i></i>" + n;
@@ -494,8 +607,7 @@
 
   // Parknamen: aus den Kartendaten plus Orte, die dort fehlen
   const parkNames = (data.parks || []).map((p) => [p.n.replace(/ NRA$| NM$| N PRES$| NM & PRES$/, ""), p.l[0], p.l[1]]);
-  parkNames.push(["Bryce Canyon", 37.593, -112.187], ["Arches", 38.733, -109.593], ["Monument Valley", 36.998, -110.098],
-    ["Valley of Fire", 36.43, -114.513], ["Horseshoe Bend", 36.879, -111.51], ["Antelope Canyon", 36.862, -111.374]);
+  (MAPCFG.extraPlaces || []).forEach((x) => parkNames.push(x));
   const parkLayer = L.layerGroup();
   parkNames.forEach(([n, lat, lng]) => L.marker([lat, lng], { interactive: false, keyboard: false,
     icon: L.divIcon({ className: "park-label", html: n, iconSize: null }) }).addTo(parkLayer));
@@ -556,7 +668,7 @@
   const ideaById = new Map(IDEAS.map((i) => [i.id, i]));
   const dotOf = new Map(), tagOf = new Map(), ideaState = new Map();
   let selIdea = null, ideaDirty = false;
-  let addedIdeas = new Map(); // ideaId -> Tage, an denen der Vorschlag im Kalender steht
+  let addedIdeas = new Map(); // ideaId -> Tage, an denen der Vorschlag im Zeitstrahl steht
 
   const tagIcon = (i) => L.divIcon({
     className: "idea-tag" + (addedIdeas.has(i.id) ? " added" : "") + (selIdea === i.id ? " sel" : ""),
@@ -572,6 +684,7 @@
     tagOf.set(i.id, t);
   });
   // Namensschilder nur im sichtbaren Ausschnitt, damit Verschieben und Zoomen flüssig bleiben
+  if (!IDEAS.length) document.querySelectorAll(".map-legend span").forEach((sp, k) => { if (k > 0) sp.hidden = true; });
   function updateIdeaLayers() {
     if (map.getZoom() >= LABEL_ZOOM) {
       ideaDots.remove();
@@ -640,15 +753,15 @@
     if (links.childNodes.length) card.append(links);
     const days = addedIdeas.get(i.id);
     if (days) {
-      const p = el("p", "already", "Schon im Kalender: " + days.map(dayLabel).join(", ") + " ");
-      const go = el("button", "ghost", "Im Kalender ansehen"); go.type = "button";
+      const p = el("p", "already", "Schon im Zeitstrahl: " + days.map(dayLabel).join(", ") + " ");
+      const go = el("button", "ghost", "Im Zeitstrahl ansehen"); go.type = "button";
       go.style.cssText = "font-size:0.8rem;padding:0.25rem 0.55rem;margin-left:0.3rem";
-      go.onclick = () => { if (days[0]) { openDayAt(days[0]); $("cal-block").scrollIntoView({ behavior: motion(), block: "start" }); } };
+      go.onclick = () => { if (days[0]) { closeMap(); setTimeout(() => openDayAt(days[0], true), 80); } };
       p.append(go); card.append(p);
     }
     if (canWrite) {
       const row = el("div", "add-row");
-      row.append(el("span", "add-title", days ? "Noch an einem Tag eintragen" : "Zum Kalender hinzufügen"));
+      row.append(el("span", "add-title", days ? "Noch an einem Tag eintragen" : "Zum Zeitstrahl hinzufügen"));
       const dl = el("label", null, "Tag"); const sel = document.createElement("select");
       sel.id = "idea-day"; fillDaySelect(sel, openDay || "", "Tag wählen"); dl.append(sel);
       const tl = el("label", null, "Uhrzeit (optional)"); const tm = document.createElement("input");
@@ -683,7 +796,7 @@
       acts.push({ id: "local-" + Date.now(), ...doc });
     }
     justPinned = null;
-    setStatus("„" + i.t + "“ steht jetzt im Kalender am " + dayLabel(day) + ".");
+    setStatus("„" + i.t + "“ steht jetzt im Zeitstrahl am " + dayLabel(day) + ".");
     render();
     renderIdea(true);
   }
@@ -749,8 +862,8 @@
       const p = el("p"); p.append(gm); box.append(p);
     }
     if (a.day) {
-      const open = el("button", "ghost", "Tag im Kalender öffnen"); open.type = "button";
-      open.onclick = () => { map.closePopup(); openDayAt(a.day, true); };
+      const open = el("button", "ghost", "Tag im Zeitstrahl öffnen"); open.type = "button";
+      open.onclick = () => { map.closePopup(); closeMap(); setTimeout(() => openDayAt(a.day, true), 80); };
       box.append(open);
     }
     return box;
@@ -758,26 +871,26 @@
 
   // --- Blickführung ---
   function showOnMap(a) {
-    $("map-block").scrollIntoView({ behavior: motion(), block: "start" });
+    openMap();
     map.flyTo([a.lat, a.lng], Math.max(map.getZoom(), 12), { duration: 0.9 });
     const m = markers.get(a.id); if (m) setTimeout(() => m.openPopup(), 1000);
   }
   function fitTrip(tripId) {
     const pts = acts.filter((a) => a.tripId === tripId && hasPos(a)).map((a) => [a.lat, a.lng]);
     if (!pts.length) return;
-    $("map-block").scrollIntoView({ behavior: motion(), block: "start" });
+    openMap();
     if (pts.length === 1) map.flyTo(pts[0], 10, { duration: 0.9 });
     else map.flyToBounds(pts, { padding: [50, 50], duration: 0.9, maxZoom: 10 });
   }
 
-  // --- Tag öffnen: Detailansicht klappt unter dem Kalender auf ---
+  // --- Tag öffnen: Detailansicht klappt in der Karte des Tages auf ---
+  const dayDetailEl = document.getElementById("day-detail");
   function openDayAt(iso, scroll) {
     openDay = iso;
     if (!multi || !$("act-end").value) $("act-day").value = iso; // die eine Eingabe übernimmt den geöffneten Tag
     render();
-    const h = document.querySelector('.cal-h[data-day="' + iso + '"]');
-    if (h) $("cal-scroll").scrollTo({ left: Math.max(0, h.offsetLeft - 8), behavior: motion() });
-    if (scroll) setTimeout(() => $("day-detail").scrollIntoView({ behavior: motion(), block: "nearest" }), 480);
+    const r = document.querySelector('.vt-row[data-day="' + iso + '"]');
+    if (scroll && r) setTimeout(() => r.scrollIntoView({ behavior: motion(), block: "start" }), 60);
   }
   function toggleDay(iso) {
     if (openDay === iso) { openDay = null; render(); return; }
@@ -785,7 +898,7 @@
   }
   function editingDetail() {
     const f = document.activeElement;
-    return !!f && $("day-detail").contains(f) && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName);
+    return !!f && dayDetailEl.contains(f) && /^(INPUT|TEXTAREA|SELECT)$/.test(f.tagName);
   }
 
   function evFor(a) {
@@ -815,7 +928,7 @@
       main.append(title);
       const pr = el("div", "place-row");
       const place = document.createElement("input");
-      place.value = a.place || ""; place.maxLength = 80; place.placeholder = "Ort, z. B. Zion National Park";
+      place.value = a.place || ""; place.maxLength = 80; place.placeholder = "Ort, z. B. " + (EX.place || "Stadtzentrum");
       place.setAttribute("aria-label", "Ort von " + a.name);
       place.onchange = () => { const v = place.value.trim(); if (v !== (a.place || "")) updateAct(a.id, { place: v }, "Ort gespeichert."); };
       const find = el("button", "ghost", locating.has(a.id) ? "Sucht …" : "Nadel suchen"); find.type = "button";
@@ -876,7 +989,7 @@
   }
 
   function renderDetail() {
-    const box = $("day-detail"), inner = $("detail-inner");
+    const box = dayDetailEl, inner = $("detail-inner");
     if (!openDay) { box.classList.remove("open"); return; } // Inhalt bleibt fürs Zuklappen stehen
     if (editingDetail()) { detailDirty = true; return; }
     detailDirty = false;
@@ -909,66 +1022,188 @@
     inner.append(card);
     requestAnimationFrame(() => box.classList.add("open"));
   }
-  $("day-detail").addEventListener("focusout", () => setTimeout(() => { if (detailDirty && !editingDetail()) renderDetail(); }, 0));
+  dayDetailEl.addEventListener("focusout", () => setTimeout(() => { if (detailDirty && !editingDetail()) render(); }, 0));
 
-  // --- Kalender mit Balken ---
-  function renderCalendar() {
-    const cal = $("cal"); cal.textContent = "";
-    const items = [];
-    trips.forEach((t) => { const s = dayIdx(t.start), e = dayIdx(t.end); if (s >= 0 && e >= s) items.push({ kind: "trip", t, s, e }); });
-    acts.filter((a) => !a.tripId && dayIdx(a.day) >= 0).sort(byTime)
-      .forEach((a) => { const i = dayIdx(a.day); items.push({ kind: "ev", a, s: i, e: i }); });
-    // Spuren verteilen: Roadtrips zuerst, dann Events des Tages
-    items.sort((x, y) => (x.kind === y.kind ? 0 : x.kind === "trip" ? -1 : 1) || x.s - y.s || (y.e - y.s) - (x.e - x.s));
-    const lanes = [];
-    items.forEach((it) => {
-      let l = lanes.findIndex((last) => last < it.s);
-      if (l === -1) { l = lanes.length; lanes.push(-1); }
-      lanes[l] = it.e; it.lane = l;
+  // --- Zeitstrahl von oben nach unten: Heute, Countdown-Checkpoints, dann alle Reisetage ---
+  const CD = TRIP.countdown || {};
+  const CPS = (CD.checkpoints || []).slice().sort((x, y) => x.date.localeCompare(y.date));
+  const START = DAYS.length ? DAYS[0].iso : "", END = DAYS.length ? DAYS[DAYS.length - 1].iso : "";
+  const daysBetween = (a, b) => Math.round((parseIso(b) - parseIso(a)) / 864e5);
+  const railDate = (iso) => {
+    const d = parseIso(iso);
+    return [d.toLocaleDateString("de-DE", { weekday: "short" }).replace(".", ""), d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })];
+  };
+  const unlocked = (c) => c.date <= todayIso;
+  const photoUrl = (p) => (p ? encodeURI(p) : "");
+
+  // Spruch und Zahl für den Kopfbereich
+  function countdownState() {
+    const t = todayIso;
+    if (t < START) {
+      const n = daysBetween(t, START);
+      const cur = CPS.filter((c) => c.date <= t && (!c.until || t <= c.until)).pop();
+      return { num: String(n), unit: n === 1 ? CD.unitOne || "Tag bis zur Reise" : CD.unit || "Tage bis zur Reise", msg: cur ? cur.text : CD.before || "" };
+    }
+    if (t <= END) {
+      const cur = CPS.filter((c) => c.date === t).pop();
+      return { num: String(dayIdx(t) + 1), unit: "Reisetag von " + DAYS.length, msg: cur ? cur.text : CD.during || "" };
+    }
+    return { num: "", unit: "", msg: CD.after || "Schön war's." };
+  }
+  function renderCountdown() {
+    const s = countdownState();
+    $("count-num").textContent = s.num;
+    $("count-unit").textContent = s.unit;
+    $("count-msg").textContent = s.msg;
+    $("count").hidden = !s.num && !s.msg;
+  }
+
+  function cpCard(c, current) {
+    const open = unlocked(c);
+    const box = el("div", "vt-cp" + (open ? "" : " locked") + (c.photo ? "" : " no-photo"));
+    if (c.photo) {
+      const img = document.createElement("img");
+      img.src = photoUrl(c.photo); img.loading = "lazy"; img.alt = open ? c.alt || "Foto von uns" : "";
+      box.append(img);
+    }
+    const [, dt] = railDate(c.date);
+    box.append(el("p", null, open ? c.text : "Wird am " + dt + " freigeschaltet."));
+    if (current) box.setAttribute("aria-current", "date");
+    return box;
+  }
+
+  function renderTimeline() {
+    const vt = $("vt"); vt.textContent = "";
+    // Roadtrips als Streifen neben der Linie, jeder in seiner eigenen Spur
+    const lanes = [], laneOf = new Map();
+    trips.slice().sort((a, b) => String(a.start).localeCompare(String(b.start))).forEach((t) => {
+      const s = dayIdx(t.start), e = dayIdx(t.end); if (s < 0 || e < s) return;
+      let l = lanes.findIndex((last) => last < s); if (l === -1) { l = lanes.length; lanes.push(-1); }
+      lanes[l] = e; laneOf.set(t.id, l);
     });
-    const rows = Math.max(lanes.length, 3);
-    cal.style.gridTemplateRows = "auto repeat(" + rows + ", 2rem) 0.4rem";
+    const L = lanes.length;
+    vt.style.setProperty("--lanes", L);
+    vt.style.setProperty("--lanes-w", L ? L * 7 + (L - 1) * 3 + "px" : "0px");
+
+    const row = (cls, iso, wd, dt) => {
+      const r = el("li", "vt-row " + cls); if (iso) r.dataset.day = iso;
+      const d = el("div", "vt-date"); if (wd) d.append(el("span", "wd", wd)); if (dt) d.append(el("span", "dt", dt));
+      const rail = el("div", "vt-rail"); rail.append(el("span", "vt-dot"));
+      const ln = el("div", "vt-lanes"); for (let l = 0; l < L; l++) ln.append(el("div", "vt-lane none"));
+      const body = el("div", "vt-body");
+      r.append(d, rail, ln, body); vt.append(r);
+      return { r, ln, body };
+    };
+
+    // Vor der Reise: Heute und die Checkpoints in zeitlicher Reihenfolge
+    if (todayIso < START) {
+      const cur = CPS.filter((c) => c.date <= todayIso).pop();
+      const pre = CPS.filter((c) => c.date < START).map((c) => ({ kind: "cp", date: c.date, c }));
+      if (!pre.some((p) => p.date === todayIso)) pre.push({ kind: "today", date: todayIso });
+      pre.sort((a, b) => a.date.localeCompare(b.date) || (a.kind === "today" ? -1 : 1));
+      pre.forEach((p) => {
+        const [wd, dt] = railDate(p.date);
+        if (p.kind === "today") {
+          const { body } = row("today", null, "Heute", dt);
+          const n = daysBetween(todayIso, START);
+          const box = el("div", "vt-now");
+          box.append(el("b", null, "noch " + n + (n === 1 ? " Tag" : " Tage")));
+          const msg = cur ? cur.text : CD.before;
+          if (msg) box.append(el("p", null, msg));
+          body.append(box);
+        } else {
+          const isCur = cur && cur.date === p.date;
+          const { body } = row((p.date < todayIso ? "done" : "") + (p.date === todayIso ? " today" : "") + (isCur ? " current" : ""), null, wd, dt);
+          body.append(cpCard(p.c, isCur));
+        }
+      });
+    }
+
+    // Die Reise
+    const sep = row("vt-sep" + (todayIso >= START ? " done" : ""), null, "", "");
+    sep.body.append(el("h3", null, CD.tripHeading || "Die Reise"), el("p", null, DAYS.length + " Tage · " + dayLabel(START) + " bis " + dayLabel(END)));
 
     DAYS.forEach((d, i) => {
+      const list = acts.filter((a) => a.day === d.iso).sort(byTime);
       const isOpen = d.iso === openDay;
-      const h = el("button", "cal-h" + (isOpen ? " open" : "")); h.type = "button";
-      h.dataset.day = d.iso;
-      h.style.gridColumn = String(i + 1);
-      h.setAttribute("aria-expanded", isOpen ? "true" : "false");
-      h.setAttribute("aria-controls", "day-detail");
-      h.append(el("span", "wd", d.wd), el("span", "dt", d.dt), el("span", "tg", TAGS[d.iso] || ""));
-      h.onclick = () => toggleDay(d.iso);
-      const bg = el("div", "cal-bg" + (d.we ? " we" : "") + (i === 0 ? " first" : "") + (d.iso === todayIso ? " today" : "") + (isOpen ? " open" : ""));
-      bg.style.gridColumn = String(i + 1);
-      bg.style.gridRow = "2 / span " + (rows + 1);
-      bg.onclick = () => toggleDay(d.iso);
-      cal.append(bg, h);
-    });
+      const cls = (list.length ? "has" : "") + (d.iso < todayIso ? " done" : "") + (d.iso === todayIso ? " today" : "") + (isOpen ? " open" : "");
+      const { ln, body } = row(cls, d.iso, d.wd, d.dt);
+      [...ln.children].forEach((cell, l) => {
+        const t = trips.find((x) => laneOf.get(x.id) === l && dayIdx(x.start) <= i && i <= dayIdx(x.end));
+        if (!t) return;
+        cell.className = "vt-lane" + (dayIdx(t.start) === i ? " s" : "") + (dayIdx(t.end) === i ? " e" : "");
+        cell.style.setProperty("--c", tripVar(t)); cell.title = t.name;
+      });
 
-    if (!items.length) cal.append(el("div", "cal-empty", "Noch keine Events. Trag oben das erste ein."));
-    items.forEach((it) => {
-      const b = el("button", "bar " + it.kind); b.type = "button";
-      b.style.gridColumn = (it.s + 1) + " / " + (it.e + 2);
-      b.style.gridRow = String(it.lane + 2);
-      if (it.kind === "trip") {
-        b.style.setProperty("--c", tripVar(it.t));
-        b.append(el("span", "lbl", it.t.name), el("span", "meta", tripLen(it.t) + " Tage"));
-        b.title = it.t.name + " · " + dayLabel(it.t.start) + " bis " + dayLabel(it.t.end);
-        b.onclick = () => toggleDay(it.t.start);
+      const card = el("div", "vt-card" + (isOpen ? " open" : ""));
+      const head = el("button", "vt-head"); head.type = "button";
+      head.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      head.append(el("span", "vt-title", "Tag " + (i + 1)));
+      if (TAGS[d.iso]) head.append(el("span", "chip", TAGS[d.iso]));
+      head.append(el("span", "vt-more", isOpen ? "Schließen" : list.length ? "Öffnen" : "Planen"));
+      head.onclick = () => toggleDay(d.iso);
+      card.append(head);
+      const cp = CPS.find((c) => c.date === d.iso && unlocked(c));
+      if (cp) card.append(cpCard(cp, d.iso === todayIso));
+      if (isOpen) {
+        card.append(dayDetailEl);
+      } else if (list.length) {
+        const ul = el("ul", "vt-evs");
+        list.forEach((a) => {
+          const li = document.createElement("li");
+          const b = el("button", "vt-ev"); b.type = "button";
+          b.append(el("span", "t", a.time || ""));
+          const nm = el("span", "nm");
+          const t = tripOf(a);
+          if (t) { const sw = el("span", "sw"); sw.style.setProperty("--c", tripVar(t)); nm.append(sw); }
+          nm.append(document.createTextNode(a.name));
+          b.append(nm, el("span", "pl", locating.has(a.id) ? "Nadel wird gesucht …" : a.place || (hasPos(a) ? "Auf der Karte" : "Noch ohne Ort")));
+          b.onclick = () => toggleDay(d.iso);
+          li.append(b); ul.append(li);
+        });
+        card.append(ul);
       } else {
-        if (it.a.time) b.append(el("span", "t", it.a.time));
-        b.append(el("span", "lbl", it.a.name));
-        b.title = it.a.name + (it.a.place ? " · " + it.a.place : "");
-        b.onclick = () => toggleDay(it.a.day);
+        card.append(el("p", "vt-empty", "Noch frei"));
       }
-      cal.append(b);
+      body.append(card);
     });
-
-    const leg = $("cal-legend"); leg.textContent = "";
-    const mk = (bg, text) => { const s = el("span"); const i = el("i"); i.style.background = bg; s.append(i, document.createTextNode(text)); leg.append(s); };
-    mk("color-mix(in srgb, var(--accent) 15%, var(--surface))", "Event");
-    trips.forEach((t) => mk(tripVar(t), t.name));
+    if (!openDay) $("detail-park").append(dayDetailEl);
   }
+
+  // --- Karte als eigene Ansicht; Zurück (Button, Browser, Escape) führt zum Zeitstrahl ---
+  let mapOpen = false, mapFitted = false;
+  function openMap() {
+    if (mapOpen) return;
+    mapOpen = true;
+    $("map-view").hidden = false;
+    document.body.classList.add("map-open");
+    try { history.pushState({ karte: 1 }, ""); } catch (e) {}
+    map.invalidateSize();
+    if (!mapFitted) { map.fitBounds(REGION); mapFitted = true; }
+    $("map-back").focus({ preventScroll: true });
+  }
+  function closeMapView() {
+    if (!mapOpen) return;
+    mapOpen = false;
+    $("map-view").hidden = true;
+    document.body.classList.remove("map-open");
+    if (placing) { placing = null; $("map").classList.remove("placing"); }
+  }
+  function closeMap() {
+    if (history.state && history.state.karte) history.back(); else closeMapView();
+  }
+  window.addEventListener("popstate", () => closeMapView());
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && mapOpen) closeMap(); });
+  $("to-map").onclick = openMap;
+  $("map-back").onclick = closeMap;
+
+  // Fotos aus trip-config.js
+  if (TRIP.hero) { $("hero").style.setProperty("--hero-img", "url(\"" + photoUrl(TRIP.hero) + "\")"); $("hero").classList.add("has-photo"); }
+  if (TRIP.heroAccent) $("hero").style.setProperty("--hero-accent", TRIP.heroAccent);
+  if (TRIP.heroPosition) $("hero").style.setProperty("--hero-pos", TRIP.heroPosition);
+  if (TRIP.mapPhoto) $("to-map").style.setProperty("--map-img", "url(\"" + photoUrl(TRIP.mapPhoto) + "\")");
+  if (TRIP.gatePhoto) { const g = $("gate-photo"); g.src = photoUrl(TRIP.gatePhoto); g.hidden = false; }
+  renderCountdown();
 
   function itemFor(a) {
     const li = document.createElement("li");
@@ -980,8 +1215,8 @@
   }
 
   function render(restyle) {
-    renderCalendar();
-    renderDetail();
+    if (editingDetail()) detailDirty = true;
+    else { renderTimeline(); renderDetail(); }
 
     const open = acts.filter((a) => dayIdx(a.day) < 0);
     $("unsched").hidden = !open.length;
@@ -1023,8 +1258,8 @@
     const a = acts.find((x) => x.id === id); if (!a) return;
     placing = id;
     $("map").classList.add("placing");
+    openMap();
     setStatus("Tippe in die Karte, wo „" + a.name + "“ hin soll.");
-    $("map-block").scrollIntoView({ behavior: motion(), block: "start" });
   }
   map.on("click", async (ev) => {
     if (!placing) return;
@@ -1034,7 +1269,7 @@
   });
 
   // --- Orte finden: erst eure Vorschläge und bekannte Orte, dann OpenStreetMap ---
-  const inBounds = (lat, lng) => lat > 27 && lat < 48 && lng > -131 && lng < -99;
+  const inBounds = (lat, lng) => lat > MAXB[0][0] && lat < MAXB[1][0] && lng > MAXB[0][1] && lng < MAXB[1][1];
   const STOP = new Set(["the", "and", "und", "der", "die", "das", "von", "mit", "zum", "zur", "bei", "nach", "auf", "am", "im"]);
   const normTxt = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]+/g, " ").replace(/\s+/g, " ").trim();
@@ -1042,13 +1277,7 @@
   IDEAS.filter((i) => hasIdeaPos(i) && !i.ap).forEach((i) => GAZ.push([i.t.replace(/\(.*?\)/g, " "), i.la, i.ln]));
   cities.forEach(([n, lat, lng]) => GAZ.push([n, lat, lng]));
   parkNames.forEach(([n, lat, lng]) => GAZ.push([n, lat, lng]));
-  [["Santa Monica", 34.0195, -118.4912], ["Hollywood", 34.0928, -118.3287], ["Malibu", 34.0259, -118.7798],
-   ["Venice", 33.985, -118.4695], ["Beverly Hills", 34.0736, -118.4004], ["Pasadena", 34.1478, -118.1445],
-   ["Anaheim", 33.8366, -117.9143], ["Disneyland", 33.8121, -117.919], ["Springdale", 37.1889, -112.9986],
-   ["Tropic", 37.6253, -112.0846], ["Henderson", 36.0395, -114.9817], ["Boulder City", 35.9786, -114.8325],
-   ["Big Sur", 36.2704, -121.8081], ["Carmel", 36.5552, -121.9233], ["Lake Tahoe", 39.0968, -120.0324],
-   ["Twentynine Palms", 34.1356, -116.0542], ["Williams", 35.2495, -112.191], ["Panguitch", 37.8228, -112.4358],
-  ].forEach((x) => GAZ.push(x));
+  (TRIP.places || []).forEach((x) => GAZ.push(x)); // zusätzliche Orte nur für die Suche
   const GAZ_N = GAZ.map(([n, lat, lng]) => ({ n: n.trim(), lat, lng, toks: normTxt(n).split(" ").filter((t) => t.length > 1 && !STOP.has(t)) }))
     .filter((g) => g.toks.length);
 
@@ -1066,8 +1295,10 @@
 
   async function osmFind(q) {
     if (!q) return null;
-    const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=us&bounded=1" +
-      "&viewbox=-126,44,-104,31&accept-language=de&q=" + encodeURIComponent(q);
+    const vb = [MAXB[0][1], MAXB[1][0], MAXB[1][1], MAXB[0][0]].join(",");
+    const url = "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&bounded=1" +
+      (TRIP.countrycodes ? "&countrycodes=" + TRIP.countrycodes : "") +
+      "&viewbox=" + vb + "&accept-language=de&q=" + encodeURIComponent(q);
     const r = await fetch(url, { headers: { Accept: "application/json" } });
     if (!r.ok) return null;
     const j = await r.json();
@@ -1092,7 +1323,7 @@
       if (!place && found.label) fields.place = found.label;
       justPinned = id;
       const ok = await updateAct(id, fields, "„" + name + "“ ist auf der Karte. Zieh die Nadel, falls die Stelle nicht genau passt.");
-      if (ok) map.flyTo([found.lat, found.lng], Math.max(map.getZoom(), 10), { duration: 0.9 });
+      if (ok && mapOpen) map.flyTo([found.lat, found.lng], Math.max(map.getZoom(), 10), { duration: 0.9 }); // versteckte Karte nicht bewegen
     } else {
       render();
       setStatus("Für „" + name + "“ wurde kein Ort gefunden. Öffne den Tag, gib einen genaueren Ort ein oder setz die Nadel per Klick.", true);
@@ -1105,7 +1336,7 @@
       const f = await geocode("", place);
       if (f) { justPinned = days[0].id; await updateAct(days[0].id, { lat: f.lat, lng: f.lng }); }
     }
-    setStatus("Roadtrip „" + name + "“ gespeichert. Öffne die Tage im Kalender, gib pro Tag einen Ort ein und tippe auf „Nadel suchen“.");
+    setStatus("Roadtrip „" + name + "“ gespeichert. Öffne die Tage im Zeitstrahl, gib pro Tag einen Ort ein und tippe auf „Nadel suchen“.");
   }
 
   // --- Eintragen (die einzige Eingabe für neue Events) ---
@@ -1128,8 +1359,8 @@
       const trip = { name, place, start, end, color, at: now };
       if (by) trip.by = by;
       const days = [];
+      let tripId;
       try {
-        let tripId;
         if (db) { const ref = tripCol().doc(); await ref.set(trip); tripId = ref.id; }
         else { tripId = "local-trip-" + now; trips.push({ id: tripId, ...trip }); }
         for (let k = 0; k < range.length; k++) {
@@ -1177,13 +1408,14 @@
   // --- Zugang per PIN und gemeinsamer Speicher (Supabase) ---
   // Die PIN wird nirgends gespeichert: Aus ihr wird der Schlüssel des Plans berechnet.
   // Jede Anfrage schickt diesen Schlüssel mit; die Datenbank gibt nur Einträge mit genau diesem Schlüssel heraus.
-  const SALT = "antonia-kommt-nach-cali-2026:";
+  const SALT = (TRIP.id || "urlaub") + ":";
   const POLL_MS = 4000;
   const local = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} },
   };
   let api = null;
+  const KEY_NAME = (TRIP.id || "urlaub") + "-name", KEY_PIN = (TRIP.id || "urlaub") + "-pin";
 
   async function planKey(pin) {
     const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(SALT + pin));
@@ -1304,8 +1536,8 @@
   }
   function enter(name, pin, remember) {
     me = name;
-    local.set("cali-name", name);
-    local.set("cali-pin", remember ? pin : null);
+    local.set(KEY_NAME, name);
+    local.set(KEY_PIN, remember ? pin : null);
     $("who").textContent = name;
     $("gate").hidden = true;
     document.body.classList.remove("locked");
@@ -1337,15 +1569,15 @@
     $("gate-btn").disabled = false;
   });
   $("gate-new").onclick = () => { gateMsg(""); setCreating(true); $("gate-pin2").focus(); };
-  $("logout").onclick = () => { local.set("cali-pin", null); location.reload(); };
+  $("logout").onclick = () => { local.set(KEY_PIN, null); location.reload(); };
 
   async function gate() {
-    $("gate-name").value = local.get("cali-name") || "";
-    const pin = local.get("cali-pin"), name = local.get("cali-name");
+    $("gate-name").value = local.get(KEY_NAME) || "";
+    const pin = local.get(KEY_PIN), name = local.get(KEY_NAME);
     if (pin && name) {
       $("gate-text").textContent = "Einen Moment, der Plan wird geöffnet …";
       try { if ((await openPlan(pin, false)) === "ok") { enter(name, pin, true); return; } } catch (e) {}
-      local.set("cali-pin", null);
+      local.set(KEY_PIN, null);
     }
     setCreating(false);
     $("gate-pin").focus();
